@@ -20,13 +20,13 @@ const stats = index.subjectStats[subjectId];
   <header class="border-b border-[var(--border)] py-12">
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
-        <div class="text-xs font-mono uppercase tracking-wider text-[var(--accent)]">
+        <div class="text-xs font-mono uppercase tracking-wider text-[var(--text-muted)]">
           Subject · {subject.code}
         </div>
         <h1 class="mt-2 font-editorial text-3xl font-semibold text-[var(--text)] sm:text-4xl">
           {subject.title}
         </h1>
-        <p class="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--text-muted)]">
+        <p class="mt-2 max-w-2xl font-editorial text-sm leading-relaxed text-[var(--text-muted)]">
           {subject.description}
         </p>
       </div>
@@ -48,7 +48,7 @@ const stats = index.subjectStats[subjectId];
         subject.courses.map((course) => (
           <a
             href={`#course-${course.id}`}
-            class="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+            class="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--text)] hover:border-[var(--text)] transition-colors"
           >
             {course.title} · {course.scoreShare}
           </a>
@@ -57,12 +57,28 @@ const stats = index.subjectStats[subjectId];
     </div>
   </header>
 
-  <div class="space-y-14 py-10">
+  <div class="space-y-16 py-10">
     {
       subject.courses.map((course) => {
         const cStats = index.courseStats.get(`${subject.id}/${course.id}`);
+        const chaptersWithCounts = course.chapters.map((chapter) => {
+          const topicIds = chapter.sections.flatMap((s) => s.topics.map((t) => t.id));
+          const publishedCount = topicIds.filter(
+            (id) => index.topicsById.get(id)?.isPublished,
+          ).length;
+          return {
+            chapter,
+            publishedCount,
+            totalCount: topicIds.length,
+          };
+        });
+
         return (
-          <section id={`course-${course.id}`} class="scroll-mt-24">
+          <section
+            id={`course-${course.id}`}
+            data-course-section={course.id}
+            class="scroll-mt-24"
+          >
             <div class="mb-6 flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--border)] pb-3">
               <div>
                 <h2 class="font-editorial text-2xl font-semibold text-[var(--text)]">
@@ -77,76 +93,226 @@ const stats = index.subjectStats[subjectId];
               </span>
             </div>
 
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {course.chapters.map((chapter) => (
-                <div class="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-                  <div class="flex items-baseline justify-between gap-2">
-                    <h3 class="font-editorial text-base font-semibold text-[var(--text)]">
-                      <span class="mr-1.5 font-mono text-xs text-[var(--accent)]">
-                        {String(chapter.order).padStart(2, '0')}
-                      </span>
-                      {chapter.title}
-                    </h3>
-                    {chapter.textbookRef && (
-                      <span class="shrink-0 text-[11px] text-[var(--text-muted)]">
-                        {chapter.textbookRef}
-                      </span>
-                    )}
-                  </div>
-
-                  <div class="mt-3 space-y-3">
-                    {chapter.sections.map((section) => (
-                      <div>
-                        <div class="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
-                          {section.title}
+            {/* PC (md+): Edge-fading horizontal linked-list chapter bar */}
+            <div class="hidden md:block">
+              <div
+                data-linked-list-bar
+                class="horizontal-fade-mask flex items-center overflow-x-auto px-5 py-4 select-none cursor-grab"
+              >
+                {chaptersWithCounts.map(({ chapter, publishedCount, totalCount }, chIdx) => {
+                  const hasNotes = publishedCount > 0;
+                  const isFirst = chIdx === 0;
+                  return (
+                    <div class="flex shrink-0 items-center">
+                      {chIdx > 0 && (
+                        <div class="flex items-center px-1.5 text-[var(--text-muted)]" aria-hidden="true">
+                          <span class="h-px w-5 bg-[var(--border)]" />
+                          <span class="-ml-1 text-[10px]">›</span>
                         </div>
-                        <ul class="space-y-1">
-                          {section.topics.map((stub) => {
-                            const resolved = index.topicsById.get(stub.id);
-                            const isPublished = resolved?.isPublished ?? false;
-                            const status = resolved?.status ?? '未开始';
-                            return (
-                              <li>
-                                <a
-                                  href={`/kb/${stub.id}`}
-                                  class:list={[
-                                    'flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-colors',
-                                    isPublished
-                                      ? 'bg-[var(--surface-subtle)]/60 font-medium text-[var(--text)] hover:text-[var(--accent)]'
-                                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]',
-                                  ]}
-                                >
-                                  <span class="flex items-center gap-2 min-w-0">
-                                    <StudyStatusBadge status={status} compact />
-                                    <span class="truncate">{resolved?.title ?? stub.title}</span>
-                                  </span>
-                                  <span class="flex shrink-0 items-center gap-1.5">
-                                    {stub.math1Only && (
-                                      <span class="rounded bg-[var(--accent-soft)] px-1 py-0.5 text-[9px] text-[var(--accent)]">
-                                        数一
-                                      </span>
-                                    )}
+                      )}
+                      <button
+                        type="button"
+                        data-chapter-tab={chapter.id}
+                        data-course-id={course.id}
+                        class:list={[
+                          'group flex items-center gap-2.5 rounded-full border px-3.5 py-2 text-xs transition-all cursor-pointer',
+                          isFirst
+                            ? 'border-[var(--text)] bg-[var(--text)] text-[var(--bg)] shadow-xs'
+                            : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--text)]',
+                        ]}
+                      >
+                        {/* Linked-list node: solid = recorded, hollow = unrecorded */}
+                        <span
+                          title={hasNotes ? `已记入 ${publishedCount} 篇` : '暂未记入'}
+                          class:list={[
+                            'inline-block h-2.5 w-2.5 shrink-0 rounded-full border-[1.5px] transition-colors',
+                            hasNotes
+                              ? isFirst
+                                ? 'border-[var(--bg)] bg-[var(--bg)]'
+                                : 'border-[var(--text)] bg-[var(--text)]'
+                              : isFirst
+                                ? 'border-[var(--bg)] bg-transparent'
+                                : 'border-[var(--text-muted)] bg-transparent',
+                          ]}
+                        />
+                        <span class="font-mono text-[11px] opacity-75">
+                          {String(chapter.order).padStart(2, '0')}
+                        </span>
+                        <span class="font-editorial font-medium whitespace-nowrap">
+                          {chapter.title}
+                        </span>
+                        <span class="font-mono text-[10px] opacity-70">
+                          {publishedCount}/{totalCount}
+                        </span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Active Chapter Detail Panel on PC */}
+              <div class="mt-3">
+                {chaptersWithCounts.map(({ chapter, publishedCount, totalCount }, chIdx) => (
+                  <div
+                    data-chapter-panel={chapter.id}
+                    data-course-id={course.id}
+                    class:list={[
+                      'rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6',
+                      chIdx === 0 ? 'block' : 'hidden',
+                    ]}
+                  >
+                    <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--border)] pb-3">
+                      <div class="flex items-baseline gap-2">
+                        <span class="font-mono text-xs text-[var(--text-muted)]">
+                          Chapter {String(chapter.order).padStart(2, '0')}
+                        </span>
+                        <h3 class="font-editorial text-lg font-semibold text-[var(--text)]">
+                          {chapter.title}
+                        </h3>
+                      </div>
+                      <div class="flex items-center gap-3 text-xs text-[var(--text-muted)]">
+                        {chapter.textbookRef && <span>{chapter.textbookRef}</span>}
+                        <span class="font-mono">
+                          已记入 {publishedCount}/{totalCount}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                      {chapter.sections.map((section) => (
+                        <div>
+                          <div class="mb-2 text-[11px] font-medium tracking-wide text-[var(--text-muted)]">
+                            {section.title}
+                          </div>
+                          <ul class="space-y-1">
+                            {section.topics.map((stub) => {
+                              const resolved = index.topicsById.get(stub.id);
+                              const isPublished = resolved?.isPublished ?? false;
+                              const status = resolved?.status ?? '未开始';
+                              return (
+                                <li>
+                                  <a
+                                    href={`/kb/${stub.id}`}
+                                    class:list={[
+                                      'flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-colors',
+                                      isPublished
+                                        ? 'bg-[var(--surface-subtle)] font-medium text-[var(--text)] hover:underline'
+                                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]',
+                                    ]}
+                                  >
+                                    <span class="flex items-center gap-2 min-w-0">
+                                      <StudyStatusBadge status={status} compact />
+                                      <span class="truncate">{resolved?.title ?? stub.title}</span>
+                                    </span>
+                                    <span class="flex shrink-0 items-center gap-1.5">
+                                      {stub.math1Only && (
+                                        <span class="rounded border border-[var(--border)] px-1 py-0.5 text-[9px] text-[var(--text-muted)]">
+                                          数一
+                                        </span>
+                                      )}
+                                      {stub.viz && (
+                                        <span class="rounded border border-[var(--border)] px-1 py-0.5 font-mono text-[9px] uppercase text-[var(--text-muted)]">
+                                          {stub.viz}
+                                        </span>
+                                      )}
+                                      {stub.weight && (
+                                        <span class="text-[10px] text-amber-600/80 dark:text-amber-400/80">
+                                          {stub.weight}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </a>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Mobile (< md): Vertical linked-list chapter layout */}
+            <div class="relative ml-2 border-l border-[var(--border)] pl-5 space-y-4 md:hidden">
+              {chaptersWithCounts.map(({ chapter, publishedCount, totalCount }, chIdx) => {
+                const hasNotes = publishedCount > 0;
+                return (
+                  <details open={chIdx === 0 || hasNotes} class="group relative">
+                    {/* Vertical linked-list node */}
+                    <span
+                      class:list={[
+                        'absolute -left-[25px] top-3.5 h-2.5 w-2.5 rounded-full border-[1.5px]',
+                        hasNotes
+                          ? 'border-[var(--text)] bg-[var(--text)]'
+                          : 'border-[var(--text-muted)] bg-[var(--bg)]',
+                      ]}
+                    />
+
+                    <summary class="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                          <span class="font-mono text-[11px] text-[var(--text-muted)]">
+                            {String(chapter.order).padStart(2, '0')}
+                          </span>
+                          <span class="truncate font-editorial text-sm font-semibold text-[var(--text)]">
+                            {chapter.title}
+                          </span>
+                        </div>
+                        {chapter.textbookRef && (
+                          <div class="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                            {chapter.textbookRef}
+                          </div>
+                        )}
+                      </div>
+                      <span class="shrink-0 font-mono text-[11px] text-[var(--text-muted)]">
+                        {publishedCount}/{totalCount} ▾
+                      </span>
+                    </summary>
+
+                    <div class="mt-2 space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface)]/60 p-3.5">
+                      {chapter.sections.map((section) => (
+                        <div>
+                          <div class="mb-1 text-[11px] font-medium text-[var(--text-muted)]">
+                            {section.title}
+                          </div>
+                          <ul class="space-y-1">
+                            {section.topics.map((stub) => {
+                              const resolved = index.topicsById.get(stub.id);
+                              const isPublished = resolved?.isPublished ?? false;
+                              const status = resolved?.status ?? '未开始';
+                              return (
+                                <li>
+                                  <a
+                                    href={`/kb/${stub.id}`}
+                                    class:list={[
+                                      'flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs',
+                                      isPublished
+                                        ? 'bg-[var(--surface-subtle)] font-medium text-[var(--text)]'
+                                        : 'text-[var(--text-muted)]',
+                                    ]}
+                                  >
+                                    <span class="flex items-center gap-2 min-w-0">
+                                      <StudyStatusBadge status={status} compact />
+                                      <span class="truncate">{resolved?.title ?? stub.title}</span>
+                                    </span>
                                     {stub.viz && (
-                                      <span class="rounded border border-[var(--border)] px-1 py-0.5 font-mono text-[9px] uppercase text-[var(--text-muted)]">
+                                      <span class="shrink-0 rounded border border-[var(--border)] px-1 py-0.5 font-mono text-[9px] uppercase text-[var(--text-muted)]">
                                         {stub.viz}
                                       </span>
                                     )}
-                                    {stub.weight && (
-                                      <span class="text-[10px] text-amber-600/80 dark:text-amber-400/80">
-                                        {stub.weight}
-                                      </span>
-                                    )}
-                                  </span>
-                                </a>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                                  </a>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                );
+              })}
             </div>
           </section>
         );
@@ -154,3 +320,90 @@ const stats = index.subjectStats[subjectId];
     }
   </div>
 </BaseLayout>
+
+<script is:inline>
+  (() => {
+    // 1. Linked-list chapter tab switching on PC
+    document.querySelectorAll('[data-chapter-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const chapterId = btn.getAttribute('data-chapter-tab');
+        const courseId = btn.getAttribute('data-course-id');
+        if (!chapterId || !courseId) return;
+
+        const section = document.querySelector(`[data-course-section="${courseId}"]`);
+        if (!section) return;
+
+        section.querySelectorAll('[data-chapter-tab]').forEach((tab) => {
+          const active = tab.getAttribute('data-chapter-tab') === chapterId;
+          tab.classList.toggle('border-[var(--text)]', active);
+          tab.classList.toggle('bg-[var(--text)]', active);
+          tab.classList.toggle('text-[var(--bg)]', active);
+          tab.classList.toggle('shadow-xs', active);
+
+          tab.classList.toggle('border-[var(--border)]', !active);
+          tab.classList.toggle('bg-[var(--surface)]', !active);
+          tab.classList.toggle('text-[var(--text)]', !active);
+
+          // Update inner linked-list node dot contrast when active
+          const dot = tab.querySelector('span[title]');
+          if (dot) {
+            const hasNotes = !dot.getAttribute('title')?.includes('暂未记入');
+            dot.classList.toggle('border-[var(--bg)]', active);
+            dot.classList.toggle('bg-[var(--bg)]', active && hasNotes);
+            dot.classList.toggle('border-[var(--text)]', !active && hasNotes);
+            dot.classList.toggle('bg-[var(--text)]', !active && hasNotes);
+            dot.classList.toggle('border-[var(--text-muted)]', !active && !hasNotes);
+          }
+        });
+
+        section.querySelectorAll('[data-chapter-panel]').forEach((panel) => {
+          const active = panel.getAttribute('data-chapter-panel') === chapterId;
+          panel.classList.toggle('hidden', !active);
+          panel.classList.toggle('block', active);
+        });
+      });
+    });
+
+    // 2. Smooth horizontal drag-to-scroll on PC linked-list bars
+    document.querySelectorAll('[data-linked-list-bar]').forEach((bar) => {
+      let isDown = false;
+      let startX = 0;
+      let scrollLeft = 0;
+      let dragged = false;
+
+      bar.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        isDown = true;
+        dragged = false;
+        startX = e.pageX - bar.offsetLeft;
+        scrollLeft = bar.scrollLeft;
+        bar.classList.add('cursor-grabbing');
+      });
+
+      window.addEventListener('mouseup', () => {
+        isDown = false;
+        bar.classList.remove('cursor-grabbing');
+      });
+
+      bar.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        const x = e.pageX - bar.offsetLeft;
+        const walk = x - startX;
+        if (Math.abs(walk) > 6) dragged = true;
+        bar.scrollLeft = scrollLeft - walk;
+      });
+
+      bar.addEventListener(
+        'click',
+        (e) => {
+          if (dragged) {
+            e.preventDefault();
+            e.stopPropagation();
+            dragged = false;
+          }
+        },
+        true,
+      );
+    });
+  })();
+</script>

@@ -148,3 +148,21 @@
     transparent 100%
   );
 }
+
+/* Horizontal edge-fading mask for PC linked-list chapter bar */
+.horizontal-fade-mask {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 4%,
+    black 94%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 4%,
+    black 94%,
+    transparent 100%
+  );
+}
