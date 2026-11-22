@@ -1,0 +1,22 @@
+# Build output
+dist/
+.astro/
+
+# Dependencies
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.production
+
+# OS / Editor
+.DS_Store
+.vscode/
+
+# Heavy local media (served separately on debian-cloud per ADR-0003)
+public/media/
