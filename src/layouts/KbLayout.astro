@@ -15,45 +15,35 @@ const { topic, headings = [] } = Astro.props;
 ---
 
 <BaseLayout title={topic.title} description={topic.summary ?? `${topic.courseTitle} · ${topic.title}`} wide>
-  <div class="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-    <!-- Floating Controls Bar -->
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-2">
+  <div class="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
+    <!-- Top Workbench Controls Bar -->
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-4">
       <button
         type="button"
         id="toggle-left-tree"
-        class="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/90 px-3.5 py-1.5 text-xs font-medium text-[var(--text)] shadow-xs backdrop-blur-md hover:border-[var(--text)] transition-colors cursor-pointer"
+        aria-expanded="true"
+        class="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--text)] hover:border-[var(--text)] transition-colors cursor-pointer"
       >
-        <span>☰</span>
+        <span id="left-tree-icon">◧</span>
         <span>章节目录 · {topic.courseShortTitle}</span>
       </button>
 
       <button
         type="button"
         id="toggle-right-toc"
-        class="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/90 px-3.5 py-1.5 text-xs font-medium text-[var(--text)] shadow-xs backdrop-blur-md hover:border-[var(--text)] transition-colors cursor-pointer"
+        aria-expanded="true"
+        class="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--text)] hover:border-[var(--text)] transition-colors cursor-pointer"
       >
         <span>本页目录与关联</span>
         <span id="right-toc-icon">▾</span>
       </button>
     </div>
 
-    <!-- Floating Collapsible Left Multi-Level Tree Drawer -->
+    <!-- Mobile collapsible syllabus -->
     <div
-      id="floating-left-tree"
-      class="fixed top-24 left-4 z-40 hidden max-h-[calc(100vh-8rem)] w-72 overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)]/95 p-5 shadow-2xl backdrop-blur-md sm:left-6"
+      id="mobile-left-tree"
+      class="mb-6 hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:hidden"
     >
-      <div class="mb-4 flex items-center justify-between border-b border-[var(--border)] pb-2.5">
-        <span class="text-xs font-semibold tracking-wider uppercase text-[var(--text-muted)]">
-          知识库导航树
-        </span>
-        <button
-          type="button"
-          id="close-left-tree"
-          class="rounded-md px-2 py-0.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] cursor-pointer"
-        >
-          收起 ✕
-        </button>
-      </div>
       <CourseSidebar
         subjectId={topic.subjectId}
         activeCourseId={topic.courseId}
@@ -61,75 +51,115 @@ const { topic, headings = [] } = Astro.props;
       />
     </div>
 
-    <!-- Main Workbench Grid -->
-    <div id="kb-grid" class="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_240px]">
-      <!-- Main Reading & Interactive Canvas -->
-      <article data-pagefind-body class="min-w-0">
-        <slot />
+    <!-- Push Sidebar + Smooth Layout Transition Workbench -->
+    <div class="flex items-start">
+      <!-- Left Sticky Push Sidebar (Independent Scroll) -->
+      <aside
+        id="push-left-sidebar"
+        class="hidden lg:block shrink-0 sticky top-20 h-[calc(100vh-6.5rem)] w-64 mr-8 opacity-100 overflow-y-auto overflow-x-hidden pr-3 border-r border-[var(--border)] transition-all duration-300 ease-out"
+      >
+        <div class="w-60">
+          <CourseSidebar
+            subjectId={topic.subjectId}
+            activeCourseId={topic.courseId}
+            activeTopicId={topic.id}
+          />
+        </div>
+      </aside>
+
+      <!-- Main Reading & Interactive Canvas (smoothly expands when sidebars collapse) -->
+      <article
+        data-pagefind-body
+        class="min-w-0 flex-1 transition-all duration-300 ease-out"
+      >
+        <div class="mx-auto max-w-3xl">
+          <slot />
+        </div>
       </article>
 
-      <!-- Collapsible Right Rail: TOC & Cross-References -->
-      <div id="collapsible-right-toc" class="lg:block">
-        <div class="sticky top-22 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)]/70 p-4 lg:border-0 lg:bg-transparent lg:p-0 lg:pl-2">
+      <!-- Right Collapsible Push Sidebar: TOC & Cross-References -->
+      <aside
+        id="push-right-sidebar"
+        class="hidden lg:block shrink-0 sticky top-20 h-[calc(100vh-6.5rem)] w-60 ml-8 opacity-100 overflow-y-auto overflow-x-hidden pl-3 border-l border-[var(--border)] transition-all duration-300 ease-out"
+      >
+        <div class="w-56">
           <RightRail topic={topic} headings={headings} />
         </div>
-      </div>
+      </aside>
+    </div>
+
+    <!-- Mobile Right TOC fallback -->
+    <div
+      id="mobile-right-toc"
+      class="mt-10 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 lg:hidden"
+    >
+      <RightRail topic={topic} headings={headings} />
     </div>
   </div>
 
-  <!-- Corner Monochrome Gradient Circular Reading Progress -->
+  <!-- Draggable Corner Monochrome Circular Reading Progress -->
   <ReadingProgress />
 </BaseLayout>
 
 <script is:inline>
   (() => {
     const leftBtn = document.getElementById('toggle-left-tree');
-    const closeLeftBtn = document.getElementById('close-left-tree');
-    const leftDrawer = document.getElementById('floating-left-tree');
+    const leftAside = document.getElementById('push-left-sidebar');
+    const mobileLeft = document.getElementById('mobile-left-tree');
 
     const rightBtn = document.getElementById('toggle-right-toc');
-    const rightPanel = document.getElementById('collapsible-right-toc');
+    const rightAside = document.getElementById('push-right-sidebar');
     const rightIcon = document.getElementById('right-toc-icon');
-    const kbGrid = document.getElementById('kb-grid');
+    const mobileRight = document.getElementById('mobile-right-toc');
 
-    function setLeftOpen(open) {
-      if (!leftDrawer) return;
-      leftDrawer.classList.toggle('hidden', !open);
-    }
-
+    let leftOpen = true;
     leftBtn?.addEventListener('click', () => {
-      if (!leftDrawer) return;
-      setLeftOpen(leftDrawer.classList.contains('hidden'));
-    });
+      leftOpen = !leftOpen;
+      leftBtn.setAttribute('aria-expanded', String(leftOpen));
 
-    closeLeftBtn?.addEventListener('click', () => setLeftOpen(false));
+      // Desktop push transition
+      if (leftAside) {
+        leftAside.classList.toggle('w-64', leftOpen);
+        leftAside.classList.toggle('mr-8', leftOpen);
+        leftAside.classList.toggle('opacity-100', leftOpen);
+        leftAside.classList.toggle('pr-3', leftOpen);
+        leftAside.classList.toggle('border-r', leftOpen);
 
-    // Close floating drawer when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!leftDrawer || leftDrawer.classList.contains('hidden')) return;
-      const target = e.target;
-      if (
-        target instanceof Node &&
-        !leftDrawer.contains(target) &&
-        !leftBtn?.contains(target)
-      ) {
-        setLeftOpen(false);
+        leftAside.classList.toggle('w-0', !leftOpen);
+        leftAside.classList.toggle('mr-0', !leftOpen);
+        leftAside.classList.toggle('opacity-0', !leftOpen);
+        leftAside.classList.toggle('pr-0', !leftOpen);
+        leftAside.classList.toggle('border-r-0', !leftOpen);
+      }
+
+      // Mobile toggle
+      if (mobileLeft) {
+        mobileLeft.classList.toggle('hidden', leftOpen);
       }
     });
 
-    let rightCollapsed = false;
+    let rightOpen = true;
     rightBtn?.addEventListener('click', () => {
-      rightCollapsed = !rightCollapsed;
-      if (rightPanel) {
-        rightPanel.classList.toggle('hidden', rightCollapsed);
-        rightPanel.classList.toggle('lg:block', !rightCollapsed);
+      rightOpen = !rightOpen;
+      rightBtn.setAttribute('aria-expanded', String(rightOpen));
+      if (rightIcon) rightIcon.textContent = rightOpen ? '▾' : '▸';
+
+      if (rightAside) {
+        rightAside.classList.toggle('w-60', rightOpen);
+        rightAside.classList.toggle('ml-8', rightOpen);
+        rightAside.classList.toggle('opacity-100', rightOpen);
+        rightAside.classList.toggle('pl-3', rightOpen);
+        rightAside.classList.toggle('border-l', rightOpen);
+
+        rightAside.classList.toggle('w-0', !rightOpen);
+        rightAside.classList.toggle('ml-0', !rightOpen);
+        rightAside.classList.toggle('opacity-0', !rightOpen);
+        rightAside.classList.toggle('pl-0', !rightOpen);
+        rightAside.classList.toggle('border-l-0', !rightOpen);
       }
-      if (kbGrid) {
-        kbGrid.classList.toggle('lg:grid-cols-[minmax(0,1fr)_240px]', !rightCollapsed);
-        kbGrid.classList.toggle('lg:grid-cols-1', rightCollapsed);
-      }
-      if (rightIcon) {
-        rightIcon.textContent = rightCollapsed ? '▸' : '▾';
+
+      if (mobileRight) {
+        mobileRight.classList.toggle('hidden', !rightOpen);
       }
     });
   })();

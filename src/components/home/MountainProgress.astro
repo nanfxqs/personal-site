@@ -1,138 +1,310 @@
 ---
-import type { SubjectId } from '@/data/syllabus';
 import type { ProgressStats } from '@/lib/kb-graph';
 
-interface MountainItem {
-  id: SubjectId;
-  title: string;
-  subtitle: string;
-  href: string;
-  stats: ProgressStats;
-  /** Peak height factor for visual variety */
-  peakY: number;
-}
-
 interface Props {
-  items: MountainItem[];
+  overallStats: ProgressStats;
+  stats408: ProgressStats;
+  statsMath1: ProgressStats;
+  statsEnglish1: ProgressStats;
+  courseStats408: {
+    ds: ProgressStats;
+    co: ProgressStats;
+    os: ProgressStats;
+    cn: ProgressStats;
+  };
 }
 
-const { items } = Astro.props;
+const {
+  overallStats,
+  stats408,
+  statsMath1,
+  statsEnglish1,
+  courseStats408,
+} = Astro.props;
 
-/** Compute climber (x, y) along a two-segment mountain ridge: (24,132) -> (140,peakY) -> (256,132) */
-function getClimberPos(percent: number, peakY: number) {
-  const t = Math.max(0.06, Math.min(1, percent / 100));
-  const startX = 24;
-  const startY = 132;
-  const peakX = 140;
-  const x = startX + (peakX - startX) * t;
-  const y = startY + (peakY - startY) * t;
-  return { x, y };
+/**
+ * Compute climber position along the grand ascending main ridge:
+ * Foot (90, 410) -> Mid-waist (450, 235) -> Summit (760, 76)
+ */
+const climbT = Math.max(0.08, Math.min(0.98, overallStats.percent / 100));
+const climberX = 90 + (760 - 90) * climbT;
+const climberY = 410 + (76 - 410) * climbT;
+
+/** Helper to interpolate a point along a line segment */
+function lerpPoint(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  percent: number,
+) {
+  const t = Math.max(0.18, Math.min(0.95, percent / 100));
+  return {
+    x: x1 + (x2 - x1) * t,
+    y: y1 + (y2 - y1) * t,
+  };
 }
+
+// Ridge progress nodes
+const nodeMath1 = lerpPoint(430, 245, 920, 145, statsMath1.percent);
+const nodeEnglish1 = lerpPoint(540, 320, 1110, 215, statsEnglish1.percent);
+
+// 408 tree-fork ridge nodes (trunk from (230, 342) -> fork hub (340, 288) -> 4 branches)
+const node408Hub = { x: 340, y: 288 };
+const branchDS = lerpPoint(340, 288, 265, 195, courseStats408.ds.percent);
+const branchCO = lerpPoint(340, 288, 360, 175, courseStats408.co.percent);
+const branchOS = lerpPoint(340, 288, 445, 198, courseStats408.os.percent);
+const branchCN = lerpPoint(340, 288, 490, 252, courseStats408.cn.percent);
 ---
 
-<div class="grid grid-cols-1 gap-5 md:grid-cols-3">
-  {
-    items.map((item) => {
-      const pos = getClimberPos(item.stats.percent, item.peakY);
-      const ridgeLen = Math.hypot(140 - 24, item.peakY - 132);
-      const climbedLen = ridgeLen * Math.max(0.06, Math.min(1, item.stats.percent / 100));
-      return (
-        <a
-          href={item.href}
-          class="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-all hover:border-[var(--text)]"
+<section class="relative w-full overflow-hidden py-6 sm:py-10">
+  <!-- Poster Header Overlay -->
+  <div class="mb-4 flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <div class="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--text-muted)]">
+        Ascent · 考研知识版图
+      </div>
+      <p class="mt-1 text-xs text-[var(--text-muted)]">
+        总攀登进度 <span class="font-mono font-semibold text-[var(--text)]">{overallStats.percent}%</span>
+        <span class="mx-1.5">·</span>
+        已写入 {overallStats.published} / {overallStats.total} 知识点
+      </p>
+    </div>
+    <a
+      href="/graph"
+      class="text-xs font-medium text-[var(--text-muted)] underline decoration-[var(--border)] underline-offset-4 hover:text-[var(--text)] transition-colors"
+    >
+      查看跨科知识图谱 →
+    </a>
+  </div>
+
+  <!-- Full-Width Grand Minimalist Mountain Poster SVG -->
+  <div class="relative w-full">
+    <svg
+      viewBox="0 0 1200 470"
+      class="h-auto w-full overflow-visible select-none"
+      role="img"
+      aria-label="考研知识库登山主视觉：包含 408 分叉山脊、数学一与英语一山脊进度"
+    >
+      <!-- Faint Horizon & Elevation Contours -->
+      <line x1="20" y1="410" x2="1180" y2="410" stroke="var(--border)" stroke-width="1" />
+      <path
+        d="M 40 375 Q 320 355 620 385 T 1160 365"
+        fill="none"
+        stroke="var(--border)"
+        stroke-width="0.8"
+        stroke-dasharray="3 5"
+        opacity="0.7"
+      />
+      <path
+        d="M 180 315 Q 520 275 880 310"
+        fill="none"
+        stroke="var(--border)"
+        stroke-width="0.8"
+        stroke-dasharray="2 6"
+        opacity="0.55"
+      />
+
+      <!-- Grand Mountain Silhouette (Main Peak + Distant Back Ridges) -->
+      <path
+        d="M 35 410 L 310 278 L 515 198 L 760 76 L 1015 245 L 1165 410"
+        fill="none"
+        stroke="var(--border)"
+        stroke-width="1.4"
+      />
+      <!-- Distant secondary peak -->
+      <path
+        d="M 590 410 L 920 145 L 1140 410"
+        fill="none"
+        stroke="var(--border)"
+        stroke-width="1"
+        opacity="0.7"
+      />
+
+      <!-- Main Ascent Spine (Foot -> Summit) -->
+      <line
+        x1="90"
+        y1="410"
+        x2="760"
+        y2="76"
+        stroke="var(--border)"
+        stroke-width="1.3"
+        stroke-dasharray="4 4"
+      />
+      <!-- Climbed solid trail behind the climber -->
+      <line
+        x1="90"
+        y1="410"
+        x2={climberX}
+        y2={climberY}
+        stroke="var(--text)"
+        stroke-width="2.2"
+        stroke-linecap="round"
+      />
+
+      <!-- Summit Marker -->
+      <g transform="translate(760, 76)">
+        <line x1="0" y1="0" x2="0" y2="-24" stroke="var(--text)" stroke-width="1.3" />
+        <polygon points="0,-24 16,-18 0,-12" fill="none" stroke="var(--text)" stroke-width="1.2" />
+        <text
+          x="22"
+          y="-14"
+          class="fill-[var(--text-muted)] font-mono text-[11px]"
         >
-          <div class="flex items-baseline justify-between gap-2">
-            <div>
-              <h3 class="font-editorial text-lg font-semibold text-[var(--text)]">
-                {item.title}
-              </h3>
-              <p class="mt-0.5 text-xs text-[var(--text-muted)]">{item.subtitle}</p>
-            </div>
-            <span class="font-mono text-xs text-[var(--text-muted)]">
-              {item.stats.published}/{item.stats.total}
-            </span>
-          </div>
+          SUMMIT · 100%
+        </text>
+      </g>
 
-          <!-- Minimalist Line-Art Mountain SVG -->
-          <div class="my-4">
-            <svg
-              viewBox="0 0 280 148"
-              class="h-32 w-full overflow-visible"
-              aria-hidden="true"
-            >
-              {/* Subtle contour lines */}
-              <path
-                d={`M 12 132 L 140 ${item.peakY} L 268 132`}
-                fill="none"
-                stroke="var(--border)"
-                stroke-width="1.2"
-                stroke-dasharray="3 3"
-              />
-              {/* Secondary background ridge */}
-              <path
-                d={`M 75 132 L 185 ${item.peakY + 26} L 265 132`}
-                fill="none"
-                stroke="var(--border)"
-                stroke-width="1"
-                opacity="0.6"
-              />
-              {/* Base ground line */}
-              <line
-                x1="12"
-                y1="132"
-                x2="268"
-                y2="132"
-                stroke="var(--border)"
-                stroke-width="1"
-              />
-              {/* Climbed progress path along left ridge */}
-              <line
-                x1="24"
-                y1="132"
-                x2={pos.x}
-                y2={pos.y}
-                stroke="var(--text)"
-                stroke-width="2"
-                stroke-linecap="round"
-                style={`stroke-dasharray: ${ridgeLen}; stroke-dashoffset: ${ridgeLen - climbedLen};`}
-              />
-              {/* Summit flag */}
-              <line
-                x1="140"
-                y1={item.peakY}
-                x2="140"
-                y2={item.peakY - 14}
-                stroke="var(--text-muted)"
-                stroke-width="1.2"
-              />
-              <polygon
-                points={`140,${item.peakY - 14} 150,${item.peakY - 10} 140,${item.peakY - 6}`}
-                fill="none"
-                stroke="var(--text-muted)"
-                stroke-width="1"
-              />
-              {/* Climber figure (minimalist stick/dot silhouette) */}
-              <g transform={`translate(${pos.x}, ${pos.y})`} class="transition-transform duration-300 group-hover:scale-110">
-                <circle cx="0" cy="-11" r="2.6" fill="var(--text)" />
-                <line x1="0" y1="-8.4" x2="0" y2="-2.5" stroke="var(--text)" stroke-width="1.6" stroke-linecap="round" />
-                <line x1="0" y1="-6.5" x2="-3" y2="-4" stroke="var(--text)" stroke-width="1.2" stroke-linecap="round" />
-                <line x1="0" y1="-6.5" x2="3.2" y2="-8" stroke="var(--text)" stroke-width="1.2" stroke-linecap="round" />
-                <line x1="0" y1="-2.5" x2="-2.5" y2="1" stroke="var(--text)" stroke-width="1.3" stroke-linecap="round" />
-                <line x1="0" y1="-2.5" x2="2.5" y2="1" stroke="var(--text)" stroke-width="1.3" stroke-linecap="round" />
-              </g>
-            </svg>
-          </div>
+      <!-- 408 Tree-Structured Ridge Fork (4 branches: DS, CO, OS, CN) -->
+      <g>
+        <!-- Trunk from main ridge to 408 hub -->
+        <line
+          x1="230"
+          y1="342"
+          x2={node408Hub.x}
+          y2={node408Hub.y}
+          stroke="var(--text-muted)"
+          stroke-width="1.5"
+        />
+        <!-- 4 Sub-ridge branches -->
+        <line x1={node408Hub.x} y1={node408Hub.y} x2="265" y2="195" stroke="var(--border)" stroke-width="1.3" />
+        <line x1={node408Hub.x} y1={node408Hub.y} x2="360" y2="175" stroke="var(--border)" stroke-width="1.3" />
+        <line x1={node408Hub.x} y1={node408Hub.y} x2="445" y2="198" stroke="var(--border)" stroke-width="1.3" />
+        <line x1={node408Hub.x} y1={node408Hub.y} x2="490" y2="252" stroke="var(--border)" stroke-width="1.3" />
 
-          <div class="flex items-center justify-between border-t border-[var(--border)] pt-3 text-xs">
-            <span class="font-mono text-[var(--text-muted)]">
-              攀登进度 {item.stats.percent}%
-            </span>
-            <span class="text-[var(--text-muted)] group-hover:text-[var(--text)] transition-colors">
-              进入山脊 →
-            </span>
-          </div>
+        <!-- Branch active progress lines -->
+        <line x1={node408Hub.x} y1={node408Hub.y} x2={branchDS.x} y2={branchDS.y} stroke="var(--text)" stroke-width="1.8" />
+        <line x1={node408Hub.x} y1={node408Hub.y} x2={branchCO.x} y2={branchCO.y} stroke="var(--text)" stroke-width="1.8" />
+        <line x1={node408Hub.x} y1={node408Hub.y} x2={branchOS.x} y2={branchOS.y} stroke="var(--text)" stroke-width="1.8" />
+        <line x1={node408Hub.x} y1={node408Hub.y} x2={branchCN.x} y2={branchCN.y} stroke="var(--text)" stroke-width="1.8" />
+
+        <!-- Interactive 408 Hub Anchor -->
+        <a href="/kb/408" class="group cursor-pointer">
+          <circle
+            cx={node408Hub.x}
+            cy={node408Hub.y}
+            r="6"
+            fill="var(--bg)"
+            stroke="var(--text)"
+            stroke-width="2"
+            class="transition-transform group-hover:scale-125"
+          />
+          <text
+            x={node408Hub.x + 12}
+            y={node408Hub.y + 4}
+            class="fill-[var(--text)] font-editorial text-[15px] font-semibold group-hover:underline"
+          >
+            408 专业基础 ({stats408.percent}%)
+          </text>
         </a>
-      );
-    })
-  }
-</div>
+
+        <!-- 408 4 Sub-branch Nodes -->
+        <a href="/kb/408#course-ds" class="group cursor-pointer">
+          <circle cx={branchDS.x} cy={branchDS.y} r="4.2" fill="var(--text)" />
+          <text x="255" y="186" text-anchor="end" class="fill-[var(--text-muted)] font-sans text-[11px] group-hover:fill-[var(--text)]">
+            数据结构 {courseStats408.ds.published}/{courseStats408.ds.total}
+          </text>
+        </a>
+        <a href="/kb/408#course-co" class="group cursor-pointer">
+          <circle cx={branchCO.x} cy={branchCO.y} r="4.2" fill="var(--text)" />
+          <text x="360" y="164" text-anchor="middle" class="fill-[var(--text-muted)] font-sans text-[11px] group-hover:fill-[var(--text)]">
+            计组 {courseStats408.co.published}/{courseStats408.co.total}
+          </text>
+        </a>
+        <a href="/kb/408#course-os" class="group cursor-pointer">
+          <circle cx={branchOS.x} cy={branchOS.y} r="4.2" fill="var(--text)" />
+          <text x="454" y="192" text-anchor="start" class="fill-[var(--text-muted)] font-sans text-[11px] group-hover:fill-[var(--text)]">
+            OS {courseStats408.os.published}/{courseStats408.os.total}
+          </text>
+        </a>
+        <a href="/kb/408#course-cn" class="group cursor-pointer">
+          <circle cx={branchCN.x} cy={branchCN.y} r="4.2" fill="var(--text)" />
+          <text x="498" y="255" text-anchor="start" class="fill-[var(--text-muted)] font-sans text-[11px] group-hover:fill-[var(--text)]">
+            计网 {courseStats408.cn.published}/{courseStats408.cn.total}
+          </text>
+        </a>
+      </g>
+
+      <!-- Math I Ridge Line & Progress Node -->
+      <g>
+        <line x1="430" y1="245" x2="920" y2="145" stroke="var(--border)" stroke-width="1.3" />
+        <line x1="430" y1="245" x2={nodeMath1.x} y2={nodeMath1.y} stroke="var(--text)" stroke-width="1.8" />
+        <a href="/kb/math1" class="group cursor-pointer">
+          <circle
+            cx={nodeMath1.x}
+            cy={nodeMath1.y}
+            r="6"
+            fill="var(--bg)"
+            stroke="var(--text)"
+            stroke-width="2"
+          />
+          <text
+            x={nodeMath1.x + 12}
+            y={nodeMath1.y - 8}
+            class="fill-[var(--text)] font-editorial text-[15px] font-semibold group-hover:underline"
+          >
+            数学一 ({statsMath1.percent}%)
+          </text>
+          <text
+            x={nodeMath1.x + 12}
+            y={nodeMath1.y + 8}
+            class="fill-[var(--text-muted)] font-mono text-[11px]"
+          >
+            高数 · 线代 · 概率论 ({statsMath1.published}/{statsMath1.total})
+          </text>
+        </a>
+      </g>
+
+      <!-- English I Ridge Line & Progress Node -->
+      <g>
+        <line x1="540" y1="320" x2="1110" y2="215" stroke="var(--border)" stroke-width="1.3" />
+        <line x1="540" y1="320" x2={nodeEnglish1.x} y2={nodeEnglish1.y} stroke="var(--text)" stroke-width="1.8" />
+        <a href="/kb/english1" class="group cursor-pointer">
+          <circle
+            cx={nodeEnglish1.x}
+            cy={nodeEnglish1.y}
+            r="6"
+            fill="var(--bg)"
+            stroke="var(--text)"
+            stroke-width="2"
+          />
+          <text
+            x={nodeEnglish1.x + 12}
+            y={nodeEnglish1.y - 6}
+            class="fill-[var(--text)] font-editorial text-[15px] font-semibold group-hover:underline"
+          >
+            英语一 ({statsEnglish1.percent}%)
+          </text>
+          <text
+            x={nodeEnglish1.x + 12}
+            y={nodeEnglish1.y + 10}
+            class="fill-[var(--text-muted)] font-mono text-[11px]"
+          >
+            词句 · 阅读 · 翻译写作 ({statsEnglish1.published}/{statsEnglish1.total})
+          </text>
+        </a>
+      </g>
+
+      <!-- The Small Lone Climber Figure Ascending the Main Ridge -->
+      <g transform={`translate(${climberX}, ${climberY})`}>
+        <!-- Subtle beacon halo -->
+        <circle cx="0" cy="-10" r="14" fill="var(--text)" opacity="0.06" />
+        <!-- Stick climber with trekking pole -->
+        <circle cx="0" cy="-16" r="3" fill="var(--text)" />
+        <line x1="0" y1="-13" x2="-1" y2="-4" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round" />
+        <line x1="-0.5" y1="-10.5" x2="4.5" y2="-8.5" stroke="var(--text)" stroke-width="1.4" stroke-linecap="round" />
+        <line x1="4.5" y1="-8.5" x2="6" y2="1" stroke="var(--text-muted)" stroke-width="1" stroke-linecap="round" />
+        <line x1="-1" y1="-4" x2="-4.5" y2="1.5" stroke="var(--text)" stroke-width="1.5" stroke-linecap="round" />
+        <line x1="-1" y1="-4" x2="2.8" y2="1.5" stroke="var(--text)" stroke-width="1.5" stroke-linecap="round" />
+        <text
+          x="-12"
+          y="-24"
+          text-anchor="end"
+          class="fill-[var(--text)] font-mono text-[11px] font-medium"
+        >
+          nanf · {overallStats.percent}%
+        </text>
+      </g>
+    </svg>
+  </div>
+</section>

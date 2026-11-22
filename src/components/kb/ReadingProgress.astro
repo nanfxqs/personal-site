@@ -3,11 +3,11 @@
 <button
   id="reading-progress-btn"
   type="button"
-  aria-label="阅读进度，点击返回顶部"
-  title="点击返回顶部"
-  class="fixed right-5 bottom-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/90 shadow-lg backdrop-blur-md transition-transform hover:scale-105 cursor-pointer"
+  aria-label="阅读进度（可拖拽移动，点击返回顶部）"
+  title="可拖拽移动位置 · 点击返回顶部"
+  class="fixed right-6 bottom-6 z-40 flex h-14 w-14 touch-none select-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/95 shadow-lg backdrop-blur-md transition-shadow hover:border-[var(--text)] hover:shadow-xl cursor-grab active:cursor-grabbing"
 >
-  <svg class="h-12 w-12 -rotate-90" viewBox="0 0 48 48" aria-hidden="true">
+  <svg class="h-14 w-14 -rotate-90 pointer-events-none" viewBox="0 0 56 56" aria-hidden="true">
     <defs>
       <linearGradient id="mono-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="var(--text-muted)" />
@@ -15,32 +15,35 @@
       </linearGradient>
     </defs>
     <circle
-      cx="24"
-      cy="24"
-      r="19"
+      cx="28"
+      cy="28"
+      r="22"
       fill="none"
       stroke="var(--border)"
       stroke-width="2"
     />
     <circle
       id="reading-progress-arc"
-      cx="24"
-      cy="24"
-      r="19"
+      cx="28"
+      cy="28"
+      r="22"
       fill="none"
       stroke="url(#mono-ring-grad)"
-      stroke-width="2.4"
+      stroke-width="2.6"
       stroke-linecap="round"
-      stroke-dasharray="119.38"
-      stroke-dashoffset="119.38"
+      stroke-dasharray="138.23"
+      stroke-dashoffset="138.23"
     />
   </svg>
-  <span
-    id="reading-progress-text"
-    class="absolute font-mono text-[10px] font-medium text-[var(--text)]"
-  >
-    0%
-  </span>
+  <div class="pointer-events-none absolute flex flex-col items-center leading-none">
+    <span
+      id="reading-progress-text"
+      class="font-mono text-[11px] font-semibold text-[var(--text)]"
+    >
+      0%
+    </span>
+    <span class="mt-0.5 text-[8px] text-[var(--text-muted)]">TOP</span>
+  </div>
 </button>
 
 <script is:inline>
@@ -50,7 +53,7 @@
     const label = document.getElementById('reading-progress-text');
     if (!btn || !arc || !label) return;
 
-    const circumference = 2 * Math.PI * 19;
+    const circumference = 2 * Math.PI * 22;
 
     function updateProgress() {
       const doc = document.documentElement;
@@ -65,8 +68,54 @@
     window.addEventListener('resize', updateProgress, { passive: true });
     updateProgress();
 
-    btn.addEventListener('click', () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Pointer-based drag + click-to-top discrimination
+    let dragging = false;
+    let moved = false;
+    let startX = 0;
+    let startY = 0;
+    let origLeft = 0;
+    let origTop = 0;
+
+    btn.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+      dragging = true;
+      moved = false;
+      const rect = btn.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      origLeft = rect.left;
+      origTop = rect.top;
+      btn.setPointerCapture(e.pointerId);
+    });
+
+    btn.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (Math.hypot(dx, dy) > 5) moved = true;
+      if (!moved) return;
+
+      const margin = 12;
+      const maxLeft = window.innerWidth - btn.offsetWidth - margin;
+      const maxTop = window.innerHeight - btn.offsetHeight - margin;
+      const nextLeft = Math.min(maxLeft, Math.max(margin, origLeft + dx));
+      const nextTop = Math.min(maxTop, Math.max(margin, origTop + dy));
+
+      btn.style.right = 'auto';
+      btn.style.bottom = 'auto';
+      btn.style.left = `${nextLeft}px`;
+      btn.style.top = `${nextTop}px`;
+    });
+
+    btn.addEventListener('pointerup', (e) => {
+      if (!dragging) return;
+      dragging = false;
+      if (btn.hasPointerCapture(e.pointerId)) {
+        btn.releasePointerCapture(e.pointerId);
+      }
+      if (!moved) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     });
   })();
 </script>
