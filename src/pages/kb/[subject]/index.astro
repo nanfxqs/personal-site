@@ -94,19 +94,20 @@ const stats = index.subjectStats[subjectId];
             </div>
 
             {/* PC (md+): Edge-fading horizontal linked-list chapter bar (no scrollbar + arrows + wheel-to-horizontal) */}
-            <div class="relative hidden md:block" data-linked-list-wrapper>
-              <button
-                type="button"
-                data-scroll-prev
-                aria-label="向左滚动章节"
-                class="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/90 text-sm text-[var(--text)] shadow-sm backdrop-blur-sm transition-all hover:border-[var(--text)] disabled:pointer-events-none disabled:opacity-0 cursor-pointer"
-              >
-                ‹
-              </button>
-              <div
-                data-linked-list-bar
-                class="horizontal-fade-mask no-scrollbar flex items-center overflow-x-auto px-10 py-4 select-none cursor-grab"
-              >
+            <div class="hidden md:block">
+              <div class="relative" data-linked-list-wrapper>
+                <button
+                  type="button"
+                  data-scroll-prev
+                  aria-label="向左滚动章节"
+                  class="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/95 text-sm text-[var(--text)] shadow-sm backdrop-blur-sm transition-all hover:border-[var(--text)] disabled:pointer-events-none disabled:opacity-0 cursor-pointer"
+                >
+                  ‹
+                </button>
+                <div
+                  data-linked-list-bar
+                  class="horizontal-fade-mask no-scrollbar flex items-center overflow-x-auto px-10 py-4 select-none cursor-grab"
+                >
                 {chaptersWithCounts.map(({ chapter, publishedCount, totalCount }, chIdx) => {
                   const hasNotes = publishedCount > 0;
                   const isFirst = chIdx === 0;
@@ -157,14 +158,15 @@ const stats = index.subjectStats[subjectId];
                   );
                 })}
               </div>
-              <button
-                type="button"
-                data-scroll-next
-                aria-label="向右滚动章节"
-                class="absolute right-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/90 text-sm text-[var(--text)] shadow-sm backdrop-blur-sm transition-all hover:border-[var(--text)] disabled:pointer-events-none disabled:opacity-0 cursor-pointer"
-              >
-                ›
-              </button>
+                <button
+                  type="button"
+                  data-scroll-next
+                  aria-label="向右滚动章节"
+                  class="absolute right-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/95 text-sm text-[var(--text)] shadow-sm backdrop-blur-sm transition-all hover:border-[var(--text)] disabled:pointer-events-none disabled:opacity-0 cursor-pointer"
+                >
+                  ›
+                </button>
+              </div>
 
               {/* Active Chapter Detail Panel on PC */}
               <div class="mt-3">
