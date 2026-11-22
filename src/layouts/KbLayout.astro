@@ -15,50 +15,144 @@ const { topic, headings = [] } = Astro.props;
 ---
 
 <BaseLayout title={topic.title} description={topic.summary ?? `${topic.courseTitle} · ${topic.title}`} wide>
-  <div class="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
-    <!-- Top Workbench Controls Bar -->
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-4">
+  <div class="mx-auto max-w-[1440px] px-4 pt-4 pb-16 sm:px-6 lg:px-8">
+    <!-- Floating Sticky Directory Toggle Controls (always accessible while scrolling) -->
+    <div
+      class="pointer-events-none sticky top-[6.25rem] z-30 mb-5 flex items-center justify-between gap-2 md:top-[4.5rem]"
+    >
       <button
         type="button"
         id="toggle-left-tree"
         aria-expanded="true"
-        class="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--text)] hover:border-[var(--text)] transition-colors cursor-pointer"
+        aria-controls="push-left-sidebar"
+        title="展开或折叠章节目录"
+        class="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/92 px-3.5 py-2 text-xs font-medium text-[var(--text)] shadow-md backdrop-blur-md transition-all hover:border-[var(--text)] hover:shadow-lg cursor-pointer"
       >
-        <span id="left-tree-icon">◧</span>
-        <span>章节目录 · {topic.courseShortTitle}</span>
+        <svg
+          id="left-tree-icon"
+          class="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform duration-200"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M9 3v18" />
+        </svg>
+        <span id="left-tree-label" class="whitespace-nowrap">
+          章节目录 <span class="hidden sm:inline text-[var(--text-muted)]">· {topic.courseShortTitle}</span>
+        </span>
       </button>
 
       <button
         type="button"
         id="toggle-right-toc"
         aria-expanded="true"
-        class="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--text)] hover:border-[var(--text)] transition-colors cursor-pointer"
+        aria-controls="push-right-sidebar"
+        title="展开或折叠本页目录与关联"
+        class="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/92 px-3.5 py-2 text-xs font-medium text-[var(--text)] shadow-md backdrop-blur-md transition-all hover:border-[var(--text)] hover:shadow-lg cursor-pointer"
       >
-        <span>本页目录与关联</span>
-        <span id="right-toc-icon">▾</span>
+        <span id="right-toc-label" class="whitespace-nowrap">本页目录与关联</span>
+        <svg
+          id="right-toc-icon"
+          class="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform duration-200"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M15 3v18" />
+        </svg>
       </button>
     </div>
 
-    <!-- Mobile collapsible syllabus -->
+    <!-- Mobile Floating Left Drawer (< lg) -->
     <div
-      id="mobile-left-tree"
-      class="mb-6 hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:hidden"
+      id="mobile-left-drawer"
+      class="fixed inset-0 z-50 hidden lg:hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label="章节目录"
     >
-      <CourseSidebar
-        subjectId={topic.subjectId}
-        activeCourseId={topic.courseId}
-        activeTopicId={topic.id}
-      />
+      <div
+        data-close-drawer="left"
+        class="absolute inset-0 bg-black/35 backdrop-blur-xs"
+      ></div>
+      <div
+        class="relative z-10 flex h-full w-[min(84vw,20rem)] flex-col border-r border-[var(--border)] bg-[var(--bg)] shadow-2xl"
+      >
+        <div class="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
+          <span class="text-xs font-semibold tracking-wider text-[var(--text)]">
+            章节目录 · {topic.courseShortTitle}
+          </span>
+          <button
+            type="button"
+            data-close-drawer="left"
+            aria-label="关闭章节目录"
+            class="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border)] text-xs text-[var(--text-muted)] hover:border-[var(--text)] hover:text-[var(--text)] cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4">
+          <CourseSidebar
+            subjectId={topic.subjectId}
+            activeCourseId={topic.courseId}
+            activeTopicId={topic.id}
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Floating Right Drawer (< lg) -->
+    <div
+      id="mobile-right-drawer"
+      class="fixed inset-0 z-50 hidden lg:hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label="本页目录与关联"
+    >
+      <div
+        data-close-drawer="right"
+        class="absolute inset-0 bg-black/35 backdrop-blur-xs"
+      ></div>
+      <div
+        class="relative z-10 ml-auto flex h-full w-[min(84vw,20rem)] flex-col border-l border-[var(--border)] bg-[var(--bg)] shadow-2xl"
+      >
+        <div class="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
+          <span class="text-xs font-semibold tracking-wider text-[var(--text)]">
+            本页目录与关联
+          </span>
+          <button
+            type="button"
+            data-close-drawer="right"
+            aria-label="关闭本页目录"
+            class="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border)] text-xs text-[var(--text-muted)] hover:border-[var(--text)] hover:text-[var(--text)] cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4">
+          <RightRail topic={topic} headings={headings} />
+        </div>
+      </div>
     </div>
 
     <!-- Push Sidebar + Smooth Layout Transition Workbench -->
     <div class="flex items-start">
-      <!-- Left Sticky Push Sidebar (Independent Scroll) -->
+      <!-- Left Sticky Push Sidebar (Independent Scroll, clears floating toggle pill) -->
       <aside
         id="push-left-sidebar"
-        class="hidden lg:block shrink-0 sticky top-20 h-[calc(100vh-6.5rem)] w-64 mr-8 opacity-100 overflow-y-auto overflow-x-hidden pr-3 border-r border-[var(--border)] transition-all duration-300 ease-out"
+        class="hidden lg:block shrink-0 sticky top-[7.5rem] h-[calc(100vh-8.5rem)] w-64 mr-8 opacity-100 overflow-y-auto overflow-x-hidden pr-3 border-r border-[var(--border)] transition-all duration-300 ease-out"
       >
-        <div class="w-60">
+        <div class="w-60 pb-6">
           <CourseSidebar
             subjectId={topic.subjectId}
             activeCourseId={topic.courseId}
@@ -80,20 +174,12 @@ const { topic, headings = [] } = Astro.props;
       <!-- Right Collapsible Push Sidebar: TOC & Cross-References -->
       <aside
         id="push-right-sidebar"
-        class="hidden lg:block shrink-0 sticky top-20 h-[calc(100vh-6.5rem)] w-60 ml-8 opacity-100 overflow-y-auto overflow-x-hidden pl-3 border-l border-[var(--border)] transition-all duration-300 ease-out"
+        class="hidden lg:block shrink-0 sticky top-[7.5rem] h-[calc(100vh-8.5rem)] w-60 ml-8 opacity-100 overflow-y-auto overflow-x-hidden pl-3 border-l border-[var(--border)] transition-all duration-300 ease-out"
       >
-        <div class="w-56">
+        <div class="w-56 pb-6">
           <RightRail topic={topic} headings={headings} />
         </div>
       </aside>
-    </div>
-
-    <!-- Mobile Right TOC fallback -->
-    <div
-      id="mobile-right-toc"
-      class="mt-10 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 lg:hidden"
-    >
-      <RightRail topic={topic} headings={headings} />
     </div>
   </div>
 
@@ -105,61 +191,119 @@ const { topic, headings = [] } = Astro.props;
   (() => {
     const leftBtn = document.getElementById('toggle-left-tree');
     const leftAside = document.getElementById('push-left-sidebar');
-    const mobileLeft = document.getElementById('mobile-left-tree');
+    const leftDrawer = document.getElementById('mobile-left-drawer');
 
     const rightBtn = document.getElementById('toggle-right-toc');
     const rightAside = document.getElementById('push-right-sidebar');
-    const rightIcon = document.getElementById('right-toc-icon');
-    const mobileRight = document.getElementById('mobile-right-toc');
+    const rightDrawer = document.getElementById('mobile-right-drawer');
 
-    let leftOpen = true;
-    leftBtn?.addEventListener('click', () => {
-      leftOpen = !leftOpen;
-      leftBtn.setAttribute('aria-expanded', String(leftOpen));
+    const desktopMedia = window.matchMedia('(min-width: 1024px)');
+    let desktopLeftOpen = true;
+    let desktopRightOpen = true;
+    let mobileLeftOpen = false;
+    let mobileRightOpen = false;
 
-      // Desktop push transition
-      if (leftAside) {
-        leftAside.classList.toggle('w-64', leftOpen);
-        leftAside.classList.toggle('mr-8', leftOpen);
-        leftAside.classList.toggle('opacity-100', leftOpen);
-        leftAside.classList.toggle('pr-3', leftOpen);
-        leftAside.classList.toggle('border-r', leftOpen);
+    function syncDesktopLeft() {
+      if (!leftAside || !leftBtn) return;
+      leftBtn.setAttribute('aria-expanded', String(desktopLeftOpen));
+      leftBtn.classList.toggle('opacity-80', !desktopLeftOpen);
 
-        leftAside.classList.toggle('w-0', !leftOpen);
-        leftAside.classList.toggle('mr-0', !leftOpen);
-        leftAside.classList.toggle('opacity-0', !leftOpen);
-        leftAside.classList.toggle('pr-0', !leftOpen);
-        leftAside.classList.toggle('border-r-0', !leftOpen);
+      leftAside.classList.toggle('w-64', desktopLeftOpen);
+      leftAside.classList.toggle('mr-8', desktopLeftOpen);
+      leftAside.classList.toggle('opacity-100', desktopLeftOpen);
+      leftAside.classList.toggle('pr-3', desktopLeftOpen);
+      leftAside.classList.toggle('border-r', desktopLeftOpen);
+
+      leftAside.classList.toggle('w-0', !desktopLeftOpen);
+      leftAside.classList.toggle('mr-0', !desktopLeftOpen);
+      leftAside.classList.toggle('opacity-0', !desktopLeftOpen);
+      leftAside.classList.toggle('pr-0', !desktopLeftOpen);
+      leftAside.classList.toggle('border-r-0', !desktopLeftOpen);
+    }
+
+    function syncDesktopRight() {
+      if (!rightAside || !rightBtn) return;
+      rightBtn.setAttribute('aria-expanded', String(desktopRightOpen));
+      rightBtn.classList.toggle('opacity-80', !desktopRightOpen);
+
+      rightAside.classList.toggle('w-60', desktopRightOpen);
+      rightAside.classList.toggle('ml-8', desktopRightOpen);
+      rightAside.classList.toggle('opacity-100', desktopRightOpen);
+      rightAside.classList.toggle('pl-3', desktopRightOpen);
+      rightAside.classList.toggle('border-l', desktopRightOpen);
+
+      rightAside.classList.toggle('w-0', !desktopRightOpen);
+      rightAside.classList.toggle('ml-0', !desktopRightOpen);
+      rightAside.classList.toggle('opacity-0', !desktopRightOpen);
+      rightAside.classList.toggle('pl-0', !desktopRightOpen);
+      rightAside.classList.toggle('border-l-0', !desktopRightOpen);
+    }
+
+    function setMobileDrawer(side, open) {
+      if (side === 'left') {
+        mobileLeftOpen = open;
+        if (open) mobileRightOpen = false;
+      } else {
+        mobileRightOpen = open;
+        if (open) mobileLeftOpen = false;
       }
+      leftDrawer?.classList.toggle('hidden', !mobileLeftOpen);
+      rightDrawer?.classList.toggle('hidden', !mobileRightOpen);
+      if (!desktopMedia.matches) {
+        leftBtn?.setAttribute('aria-expanded', String(mobileLeftOpen));
+        rightBtn?.setAttribute('aria-expanded', String(mobileRightOpen));
+      }
+      document.body.style.overflow = mobileLeftOpen || mobileRightOpen ? 'hidden' : '';
+    }
 
-      // Mobile toggle
-      if (mobileLeft) {
-        mobileLeft.classList.toggle('hidden', leftOpen);
+    leftBtn?.addEventListener('click', () => {
+      if (desktopMedia.matches) {
+        desktopLeftOpen = !desktopLeftOpen;
+        syncDesktopLeft();
+      } else {
+        setMobileDrawer('left', !mobileLeftOpen);
       }
     });
 
-    let rightOpen = true;
     rightBtn?.addEventListener('click', () => {
-      rightOpen = !rightOpen;
-      rightBtn.setAttribute('aria-expanded', String(rightOpen));
-      if (rightIcon) rightIcon.textContent = rightOpen ? '▾' : '▸';
-
-      if (rightAside) {
-        rightAside.classList.toggle('w-60', rightOpen);
-        rightAside.classList.toggle('ml-8', rightOpen);
-        rightAside.classList.toggle('opacity-100', rightOpen);
-        rightAside.classList.toggle('pl-3', rightOpen);
-        rightAside.classList.toggle('border-l', rightOpen);
-
-        rightAside.classList.toggle('w-0', !rightOpen);
-        rightAside.classList.toggle('ml-0', !rightOpen);
-        rightAside.classList.toggle('opacity-0', !rightOpen);
-        rightAside.classList.toggle('pl-0', !rightOpen);
-        rightAside.classList.toggle('border-l-0', !rightOpen);
+      if (desktopMedia.matches) {
+        desktopRightOpen = !desktopRightOpen;
+        syncDesktopRight();
+      } else {
+        setMobileDrawer('right', !mobileRightOpen);
       }
+    });
 
-      if (mobileRight) {
-        mobileRight.classList.toggle('hidden', !rightOpen);
+    document.querySelectorAll('[data-close-drawer]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const side = el.getAttribute('data-close-drawer');
+        if (side === 'left' || side === 'right') {
+          setMobileDrawer(side, false);
+        }
+      });
+    });
+
+    // Close mobile right TOC drawer when clicking an in-page heading link
+    rightDrawer?.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+      anchor.addEventListener('click', () => setMobileDrawer('right', false));
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && (mobileLeftOpen || mobileRightOpen)) {
+        setMobileDrawer('left', false);
+        setMobileDrawer('right', false);
+      }
+    });
+
+    desktopMedia.addEventListener('change', (e) => {
+      if (e.matches) {
+        setMobileDrawer('left', false);
+        setMobileDrawer('right', false);
+        syncDesktopLeft();
+        syncDesktopRight();
+      } else {
+        leftBtn?.setAttribute('aria-expanded', String(mobileLeftOpen));
+        rightBtn?.setAttribute('aria-expanded', String(mobileRightOpen));
       }
     });
   })();

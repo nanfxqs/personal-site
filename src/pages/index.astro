@@ -2,16 +2,19 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import MountainProgress from '@/components/home/MountainProgress.astro';
+import { compareJournalPosts, formatJournalDate } from '@/lib/journal-date';
 import { getKnowledgeIndex, normalizeJournalSlug } from '@/lib/kb-graph';
 
 const index = await getKnowledgeIndex();
 const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
-  (a, b) => b.data.date.getTime() - a.data.date.getTime(),
+  compareJournalPosts,
 );
 
 const latestPost = posts[0];
 const latestSlug = latestPost ? normalizeJournalSlug(latestPost.id) : null;
-const latestDate = latestPost ? latestPost.data.date.toISOString().slice(0, 10) : null;
+const latestDate = latestPost
+  ? formatJournalDate(latestPost.data.date, latestPost.data.datePrecision)
+  : null;
 
 const emptyStats = {
   total: 0,
@@ -30,7 +33,7 @@ const courseStats408 = {
 };
 ---
 
-<BaseLayout wide hideFooter>
+<BaseLayout wide>
   <MountainProgress
     overallStats={index.overallStats}
     stats408={index.subjectStats['408']}

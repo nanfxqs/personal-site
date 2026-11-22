@@ -9,10 +9,9 @@ interface Props {
   title?: string;
   description?: string;
   wide?: boolean;
-  hideFooter?: boolean;
 }
 
-const { title, description = SITE.description, wide = false, hideFooter = false } = Astro.props;
+const { title, description = SITE.description, wide = false } = Astro.props;
 const pageTitle = title ? `${title} · ${SITE.nickname}` : SITE.title;
 ---
 
@@ -39,16 +38,6 @@ const pageTitle = title ? `${title} · ${SITE.nickname}` : SITE.title;
     <main class:list={['flex-1', wide ? 'w-full' : 'mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8']}>
       <slot />
     </main>
-    {!hideFooter && (
-      <footer class="mt-20 border-t border-[var(--border)] py-8 text-center text-xs text-[var(--text-muted)]">
-        <div class="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
-          <p class="font-editorial">
-            {SITE.nickname} · 日常随笔与考研知识图谱
-          </p>
-          <p>Built with Astro Islands · Static &amp; Self-Hosted</p>
-        </div>
-      </footer>
-    )}
     <SearchModal />
   </body>
 </html>
