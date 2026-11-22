@@ -17,7 +17,7 @@
 ### 代码与组件边界（详见 [docs/coding-standards.md](./docs/coding-standards.md)）
 - **Islands 边界**：静态展示用 `.astro`，仅交互区域用 `.tsx`；2D 交互用 `client:visible`，3D WebGL 用 `client:only="react"` + `Lazy3DScene`。
 - **高内聚与复用阈值**：单页专属演示组件放在 `src/content/kb/<topic-id>/` 下，文件名**必须以 `_` 开头**；仅当被 **≥ 2 个**知识点复用时才抽离至 `src/components/viz/`。
-- **双主题适配**：交互组件与样式须兼容亮/暗模式（`.dark`），复用 `src/styles/global.css` 中的主题变量。
+- **双主题与 UI 原语**：通用交互原语优先复用 `src/components/ui/`（shadcn/ui）；样式须兼容亮/暗模式（`.dark`），复用 `src/styles/global.css` 中的主题语义变量。
 
 ### 知识点与日常写入（详见 [docs/authoring-guide.md](./docs/authoring-guide.md)）
 - **术语一致**：严格遵守 [GLOSSARY.md](./GLOSSARY.md)，严禁混用禁用词。
