@@ -93,11 +93,11 @@ const stats = index.subjectStats[subjectId];
               </span>
             </div>
 
-            {/* PC (md+): Edge-fading horizontal linked-list chapter bar */}
-            <div class="hidden md:block">
+            {/* PC (md+): Edge-fading horizontal linked-list chapter bar (no scrollbar + wheel-to-horizontal) */}
+            <div class="relative hidden md:block">
               <div
                 data-linked-list-bar
-                class="horizontal-fade-mask flex items-center overflow-x-auto px-5 py-4 select-none cursor-grab"
+                class="horizontal-fade-mask no-scrollbar flex items-center overflow-x-auto px-6 py-4 select-none cursor-grab"
               >
                 {chaptersWithCounts.map(({ chapter, publishedCount, totalCount }, chIdx) => {
                   const hasNotes = publishedCount > 0;
@@ -364,12 +364,28 @@ const stats = index.subjectStats[subjectId];
       });
     });
 
-    // 2. Smooth horizontal drag-to-scroll on PC linked-list bars
+    // 2. Smooth horizontal drag-to-scroll & mouse wheel horizontal binding on PC linked-list bars
     document.querySelectorAll('[data-linked-list-bar]').forEach((bar) => {
       let isDown = false;
       let startX = 0;
       let scrollLeft = 0;
       let dragged = false;
+
+      bar.addEventListener(
+        'wheel',
+        (e) => {
+          if (bar.scrollWidth <= bar.clientWidth) return;
+          const delta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+          if (delta === 0) return;
+          const atStart = bar.scrollLeft <= 0 && delta < 0;
+          const atEnd = bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 1 && delta > 0;
+          if (!atStart && !atEnd) {
+            e.preventDefault();
+            bar.scrollLeft += delta;
+          }
+        },
+        { passive: false },
+      );
 
       bar.addEventListener('mousedown', (e) => {
         if (e.button !== 0) return;

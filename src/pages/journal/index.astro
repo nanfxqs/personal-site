@@ -29,7 +29,7 @@ const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
   <section class="py-8">
     <div
       id="vertical-timeline-viewport"
-      class="timeline-fade-mask relative max-h-[72vh] overflow-y-auto px-2 py-10 select-none sm:cursor-grab"
+      class="timeline-fade-mask no-scrollbar relative max-h-[72vh] overflow-y-auto px-2 py-10 select-none sm:cursor-grab"
     >
       <div class="relative mx-auto max-w-3xl border-l border-[var(--border)] pl-7 sm:pl-10">
         {

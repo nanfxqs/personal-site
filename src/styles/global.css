@@ -154,15 +154,25 @@
   mask-image: linear-gradient(
     to right,
     transparent 0%,
-    black 4%,
-    black 94%,
+    black 5%,
+    black 93%,
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to right,
     transparent 0%,
-    black 4%,
-    black 94%,
+    black 5%,
+    black 93%,
     transparent 100%
   );
+}
+
+/* Hide native scrollbars cleanly while preserving scroll & wheel behavior */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
