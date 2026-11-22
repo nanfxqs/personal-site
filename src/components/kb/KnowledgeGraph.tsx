@@ -1,501 +1,443 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { drag } from 'd3-drag';
-import {
-  forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY,
-  type SimulationLinkDatum,
-} from 'd3-force';
-import { select } from 'd3-selection';
-import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
-import { Maximize, Minus, Plus } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { forceCollide, forceX, forceY } from 'd3-force';
+import type ForceGraph from 'force-graph';
+import { animate } from 'motion';
+import { ArrowUpRight, Maximize, Minus, PanelRight, Plus, X } from 'lucide-react';
 import type { GraphEdge, GraphNode } from '@/lib/kb-graph';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-interface KnowledgeGraphProps {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-}
-
-const SUBJECT_META: Record<string, { label: string; color: string }> = {
-  '408': { label: '408 计算机基础', color: '#c2410c' },
-  math1: { label: '数学一', color: '#0f766e' },
-  english1: { label: '英语一', color: '#4338ca' },
+const SUBJECT_META = {
+  '408': { label: '408 计算机基础', color: '#0284c7' },
+  math1: { label: '数学一', color: '#0d9488' },
+  english1: { label: '英语一', color: '#d97706' },
 };
 
-interface LayoutNode {
-  id: string;
-  x: number;
-  y: number;
-  anchorX: number;
-  anchorY: number;
-  fx?: number | null;
-  fy?: number | null;
-}
-
-const VIEW_WIDTH = 920;
-const VIEW_HEIGHT = 560;
-const MIN_ZOOM = 0.2;
-const MAX_ZOOM = 4;
+const FILTERS = ['all', '408', 'math1', 'english1'] as const;
 const VIEW_CONTROLS = [
   { label: '缩小', icon: Minus, factor: 0.8 },
   { label: '放大', icon: Plus, factor: 1.25 },
   { label: '适配视图', icon: Maximize, factor: null },
 ];
+const MIN_ZOOM = 0.15;
+const MAX_ZOOM = 5;
 
-export function KnowledgeGraph({ nodes, edges }: KnowledgeGraphProps) {
-  const [subjectFilter, setSubjectFilter] = useState<'all' | '408' | 'math1' | 'english1'>('all');
+type SubjectFilter = typeof FILTERS[number];
+type CanvasNode = GraphNode & { x: number; y: number; anchorX: number; anchorY: number };
+type CanvasLink = { source: CanvasNode; target: CanvasNode; kind: GraphEdge['kind'] };
+type Graph = ForceGraph<CanvasNode, CanvasLink>;
+type Camera = { x: number; y: number; scale: number };
+
+function nodeRadius(node: CanvasNode) {
+  return node.isPublished ? 6 : 4;
+}
+
+function makeGraphData(nodes: GraphNode[], edges: GraphEdge[]) {
+  const subjects = Array.from(new Set(nodes.map((node) => node.subjectId)));
+  const coursesBySubject = new Map(subjects.map((subject) => [
+    subject, Array.from(new Set(nodes.filter((node) => node.subjectId === subject).map((node) => node.courseId))),
+  ]));
+  const byId = new Map<string, CanvasNode>();
+  nodes.forEach((node, index) => {
+    const angle = 2 * Math.PI * subjects.indexOf(node.subjectId) / subjects.length - Math.PI / 2;
+    const distance = subjects.length > 1 ? 120 : 0;
+    const courses = coursesBySubject.get(node.subjectId)!;
+    const courseAngle = angle + 2 * Math.PI * courses.indexOf(node.courseId) / courses.length;
+    const courseDistance = courses.length > 1 ? 54 : 0;
+    const anchorX = Math.cos(angle) * distance + Math.cos(courseAngle) * courseDistance;
+    const anchorY = Math.sin(angle) * distance + Math.sin(courseAngle) * courseDistance;
+    const spiral = index * Math.PI * (3 - Math.sqrt(5));
+    const radius = Math.sqrt(index) * 11;
+    byId.set(node.id, {
+      ...node, anchorX, anchorY,
+      x: anchorX + Math.cos(spiral) * radius,
+      y: anchorY + Math.sin(spiral) * radius,
+    });
+  });
+  return {
+    nodes: Array.from(byId.values()),
+    links: edges.map((edge) => ({
+      source: byId.get(edge.source)!,
+      target: byId.get(edge.target)!,
+      kind: edge.kind,
+    })),
+  };
+}
+
+export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: GraphEdge[] }) {
+  const [subjectFilter, setSubjectFilter] = useState<SubjectFilter>('all');
   const [onlyConnected, setOnlyConnected] = useState(true);
-  const [selection, setSelectedId] = useState<string | null>(null);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const sceneRef = useRef<SVGGElement>(null);
-  const controlsRef = useRef<{
-    fit: () => void;
-    scale: (factor: number) => void;
-    pan: (x: number, y: number) => void;
-    focus: (id: string) => void;
-  } | null>(null);
+  const [selectedId, setSelectedId] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [rendererFailed, setRendererFailed] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
+  const [graph, setGraph] = useState<Graph | null>(null);
+  const selectionRef = useRef('');
+  const cameraAnimation = useRef<{ stop: () => void }>();
 
   const filtered = useMemo(() => {
     const candidates = nodes.filter((node) => subjectFilter === 'all' || node.subjectId === subjectFilter);
-    const candidateIds = new Set(candidates.map((node) => node.id));
-    const visibleEdges = edges.filter((edge) => candidateIds.has(edge.source) && candidateIds.has(edge.target));
-    const connectedIds = new Set(visibleEdges.flatMap(({ source, target }) => [source, target]));
-    const visibleNodes = onlyConnected ? candidates.filter((node) => connectedIds.has(node.id)) : candidates;
-
-    const subjects = new Map<string, Map<string, GraphNode[]>>();
-    for (const node of visibleNodes) {
-      const courses = subjects.get(node.subjectId) ?? new Map<string, GraphNode[]>();
-      const course = courses.get(node.courseId) ?? [];
-      course.push(node);
-      courses.set(node.courseId, course);
-      subjects.set(node.subjectId, courses);
-    }
-
-    const positions = new Map<string, LayoutNode>();
-    Array.from(subjects.values()).forEach((courses, subjectIndex) => {
-      const subjectAngle = subjectIndex / subjects.size * Math.PI * 2 - Math.PI / 2;
-      const subjectRadius = subjects.size === 1 ? 0 : 195;
-      const subjectX = VIEW_WIDTH / 2 + Math.cos(subjectAngle) * subjectRadius;
-      const subjectY = VIEW_HEIGHT / 2 + Math.sin(subjectAngle) * subjectRadius;
-
-      Array.from(courses.values()).forEach((course, courseIndex) => {
-        const courseAngle = courseIndex / courses.size * Math.PI * 2 + subjectAngle;
-        const courseRadius = courses.size === 1 ? 0 : 72;
-        const anchorX = subjectX + Math.cos(courseAngle) * courseRadius;
-        const anchorY = subjectY + Math.sin(courseAngle) * courseRadius;
-
-        course.forEach((node, index) => {
-          const angle = index * Math.PI * (3 - Math.sqrt(5));
-          const radius = Math.sqrt(index) * 14;
-          positions.set(node.id, {
-            id: node.id,
-            x: anchorX + Math.cos(angle) * radius,
-            y: anchorY + Math.sin(angle) * radius,
-            anchorX,
-            anchorY,
-          });
-        });
-      });
-    });
-
-    return { visibleNodes, visibleEdges, positions };
+    const ids = new Set(candidates.map((node) => node.id));
+    const visibleEdges = edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target));
+    const connected = new Set(visibleEdges.flatMap(({ source, target }) => [source, target]));
+    const visibleNodes = onlyConnected ? candidates.filter((node) => connected.has(node.id)) : candidates;
+    return { nodes: visibleNodes, edges: visibleEdges };
   }, [nodes, edges, subjectFilter, onlyConnected]);
-
-  const selectedNode = filtered.visibleNodes.find((node) => node.id === selection);
-  const selectedId = selectedNode?.id;
-  const activeId = selectedId ?? hoveredId;
-  const neighbors = useMemo(() => {
+  const selectedNode = filtered.nodes.find((node) => node.id === selectedId);
+  const selectedNeighbors = useMemo(() => {
     const ids = new Set<string>();
-    for (const { source, target } of filtered.visibleEdges) {
-      if (source === activeId) ids.add(target);
-      if (target === activeId) ids.add(source);
+    for (const { source, target } of filtered.edges) {
+      if (source === selectedId) ids.add(target);
+      if (target === selectedId) ids.add(source);
     }
-    return ids;
-  }, [activeId, filtered]);
-  const selectedNeighbors = selectedId ? filtered.visibleNodes.filter((node) => neighbors.has(node.id)) : [];
+    return filtered.nodes.filter((node) => ids.has(node.id));
+  }, [filtered, selectedId]);
 
   useEffect(() => {
-    const svg = svgRef.current;
-    const scene = sceneRef.current;
-    if (!svg || !scene) return;
+    const host = container.current;
+    if (!host) return;
+    let disposed = false;
+    let instance: Graph | undefined;
+    let observer: ResizeObserver | undefined;
+    let themeObserver: MutationObserver | undefined;
+    const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const hoverPreference = window.matchMedia('(any-hover: hover)');
+    let hoveredId = '';
+    let activeId = '';
+    let neighbors = new Set<string>();
+    let text = '';
+    let muted = '';
 
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const points = new Map(Array.from(filtered.positions, ([id, point]) => [id, { ...point }]));
-    const links = filtered.visibleEdges.map(({ source, target }) => ({
-      source: points.get(source)!,
-      target: points.get(target)!,
-    }));
-    const nodeSelection = select(scene).selectAll<SVGGElement, LayoutNode>('[data-graph-node]')
-      .datum(function () { return points.get(this.dataset.graphNode!)!; });
-    const edgeElements = scene.querySelectorAll<SVGLineElement>('line');
-    const renderPositions = () => {
-      nodeSelection.attr('transform', (node) => `translate(${node.x},${node.y})`);
-      links.forEach(({ source, target }, index) => {
-        const line = edgeElements[index];
-        line.setAttribute('x1', String(source.x));
-        line.setAttribute('y1', String(source.y));
-        line.setAttribute('x2', String(target.x));
-        line.setAttribute('y2', String(target.y));
-      });
-    };
-
-    const simulation = forceSimulation(Array.from(points.values()))
-      .force('repel', forceManyBody<LayoutNode>().strength(-48))
-      .force('collide', forceCollide<LayoutNode>(13))
-      .force('links', forceLink<LayoutNode, SimulationLinkDatum<LayoutNode>>(links)
-        .distance((link) => {
-          const source = link.source as LayoutNode;
-          const target = link.target as LayoutNode;
-          return source.anchorX === target.anchorX && source.anchorY === target.anchorY ? 45 : 110;
+    import('force-graph').then(({ default: ForceGraphRenderer }) => {
+      if (disposed) return;
+      const renderer = new ForceGraphRenderer<CanvasNode, CanvasLink>(host);
+      instance = renderer;
+      const refresh = () => renderer.autoPauseRedraw(false);
+      const readTheme = () => {
+        const style = getComputedStyle(host);
+        text = style.getPropertyValue('--text').trim();
+        muted = style.getPropertyValue('--text-muted').trim();
+        refresh();
+      };
+      renderer
+        .minZoom(MIN_ZOOM).maxZoom(MAX_ZOOM)
+        .nodeVal((node) => (nodeRadius(node) / 4) ** 2)
+        .nodeLabel('').linkLabel('').linkHoverPrecision(0)
+        .d3VelocityDecay(0.35).d3AlphaDecay(0.035).d3AlphaMin(0.015)
+        .d3Force('center', null)
+        .d3Force('cluster-x', forceX<CanvasNode>((node) => node.anchorX).strength(0.07))
+        .d3Force('cluster-y', forceY<CanvasNode>((node) => node.anchorY).strength(0.07))
+        .d3Force('collision', forceCollide<CanvasNode>(11))
+        .onRenderFramePre(() => {
+          const next = selectionRef.current || hoveredId;
+          if (next === activeId) return;
+          activeId = next;
+          neighbors = new Set();
+          if (!activeId) return;
+          for (const { source, target } of renderer.graphData().links) {
+            if (source.id === activeId) neighbors.add(target.id);
+            if (target.id === activeId) neighbors.add(source.id);
+          }
         })
-        .strength(0.24))
-      .force('cluster-x', forceX<LayoutNode>((node) => node.anchorX).strength(0.15))
-      .force('cluster-y', forceY<LayoutNode>((node) => node.anchorY).strength(0.15))
-      .stop();
-    simulation.tick(reduceMotion.matches ? 180 : 38);
-    renderPositions();
-    simulation.on('tick', renderPositions);
-    if (!reduceMotion.matches && points.size) simulation.restart();
+        .onRenderFramePost(() => {
+          if (!renderer.autoPauseRedraw()) renderer.autoPauseRedraw(true);
+        })
+        .nodeCanvasObject((node, context, scale) => {
+          const focused = node.id === activeId;
+          const radius = nodeRadius(node);
+          context.save();
+          context.globalAlpha = !activeId || focused || neighbors.has(node.id) ? 1 : 0.22;
+          context.fillStyle = SUBJECT_META[node.subjectId].color;
+          context.strokeStyle = context.fillStyle;
+          context.lineWidth = 1.4 / scale;
+          context.beginPath();
+          context.arc(node.x, node.y, radius, 0, Math.PI * 2);
+          if (node.isPublished) context.fill();
+          else context.stroke();
+          if (focused) {
+            context.strokeStyle = text;
+            context.beginPath();
+            context.arc(node.x, node.y, radius + 4 / scale, 0, Math.PI * 2);
+            context.stroke();
+          }
+          const labelOpacity = focused ? 1 : activeId ? 0 : Math.max(0, Math.min(1, (scale - 1.65) / 0.9));
+          if (labelOpacity > 0) {
+            context.globalAlpha = labelOpacity;
+            context.font = `${12 / scale}px system-ui, sans-serif`;
+            context.fillStyle = text;
+            context.textAlign = 'center';
+            const title = focused || node.title.length <= 12 ? node.title : `${node.title.slice(0, 12)}…`;
+            context.fillText(title, node.x, node.y + radius + 17 / scale);
+          }
+          context.restore();
+        })
+        .nodePointerAreaPaint((node, color, context, scale) => {
+          context.fillStyle = color;
+          context.beginPath();
+          context.arc(node.x, node.y, Math.max(nodeRadius(node) + 2, 8 / scale), 0, Math.PI * 2);
+          context.fill();
+        })
+        .linkCanvasObjectMode(() => 'replace')
+        .linkCanvasObject(({ source, target, kind }, context, scale) => {
+          const focused = source.id === activeId || target.id === activeId;
+          context.save();
+          context.strokeStyle = focused ? text : muted;
+          context.globalAlpha = focused ? 0.8 : activeId ? 0.08 : 0.35;
+          context.lineWidth = (focused ? 1.6 : 0.85) / scale;
+          if (kind === 'related') context.setLineDash([3 / scale, 3 / scale]);
+          context.beginPath();
+          context.moveTo(source.x, source.y);
+          context.lineTo(target.x, target.y);
+          context.stroke();
+          context.restore();
+        })
+        .onNodeHover((node) => {
+          hoveredId = hoverPreference.matches ? node?.id ?? '' : '';
+          refresh();
+        })
+        .onNodeClick((node) => setSelectedId(node.id))
+        .onBackgroundClick(() => {
+          hoveredId = '';
+          setSelectedId('');
+          refresh();
+        });
 
-    let width = VIEW_WIDTH;
-    let height = VIEW_HEIGHT;
-    const canvas = select(svg);
-    const camera = zoom<SVGSVGElement, unknown>()
-      .extent(() => [[0, 0], [width, height]])
-      .scaleExtent([MIN_ZOOM, MAX_ZOOM])
-      .on('zoom', ({ transform }) => scene.setAttribute('transform', transform.toString()));
-    canvas.call(camera).on('dblclick.zoom', null);
+      renderer.d3Force('charge')?.strength(-76);
+      renderer.d3Force('link')?.distance(64).strength(0.32);
+      const syncMotion = () => renderer
+        .warmupTicks(motionPreference.matches ? 130 : 32)
+        .cooldownTicks(motionPreference.matches ? 0 : Infinity);
+      const resize = () => renderer.width(host.clientWidth).height(host.clientHeight);
+      syncMotion();
+      readTheme();
+      resize();
+      observer = new ResizeObserver(resize);
+      observer.observe(host);
+      themeObserver = new MutationObserver(readTheme);
+      themeObserver.observe(document.documentElement, { attributeFilter: ['class'] });
+      motionPreference.addEventListener('change', syncMotion);
+      cleanMotion = () => motionPreference.removeEventListener('change', syncMotion);
+      setGraph(() => renderer);
+    }).catch(() => {
+      if (!disposed) setRendererFailed(true);
+    });
 
-    const fit = () => {
-      const positions = Array.from(points.values());
-      const [minX, maxX, minY, maxY] = positions.reduce(
-        ([left, right, top, bottom], point) => [
-          Math.min(left, point.x), Math.max(right, point.x),
-          Math.min(top, point.y), Math.max(bottom, point.y),
-        ],
-        [Infinity, -Infinity, Infinity, -Infinity],
-      );
-      const scale = Math.max(MIN_ZOOM, Math.min(1.35,
-        Math.max(1, width - 64) / Math.max(40, maxX - minX),
-        Math.max(1, height - 64) / Math.max(40, maxY - minY),
-      ));
-      canvas.call(camera.transform, positions.length
-        ? zoomIdentity.translate(width / 2, height / 2).scale(scale)
-          .translate(-(minX + maxX) / 2, -(minY + maxY) / 2)
-        : zoomIdentity);
-    };
-    const resize = () => {
-      const { clientWidth, clientHeight } = svg;
-      if (!clientWidth || !clientHeight || (width === clientWidth && height === clientHeight)) return;
-      width = clientWidth;
-      height = clientHeight;
-      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-      fit();
-    };
-    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-    fit();
-    resize();
-    const observer = new ResizeObserver(resize);
-    observer.observe(svg);
-
-    nodeSelection.call(drag<SVGGElement, LayoutNode>()
-      .container(() => scene)
-      .clickDistance(5)
-      .on('start', (event, node) => {
-        node.fx = node.x;
-        node.fy = node.y;
-        if (!event.active && !reduceMotion.matches) simulation.alphaTarget(0.25).restart();
-      })
-      .on('drag', (event, node) => {
-        node.fx = node.x = event.x;
-        node.fy = node.y = event.y;
-        renderPositions();
-      })
-      .on('end', (event, node) => {
-        node.fx = null;
-        node.fy = null;
-        if (!event.active) simulation.alphaTarget(0);
-      }));
-
-    controlsRef.current = {
-      fit,
-      scale: (factor) => canvas.call(camera.scaleBy, factor),
-      pan: (x, y) => {
-        const transform = zoomTransform(svg);
-        canvas.call(camera.translateBy, x / transform.k, y / transform.k);
-      },
-      focus: (id) => {
-        const point = points.get(id);
-        if (point) canvas.call(camera.translateTo, point.x, point.y);
-      },
-    };
-
+    let cleanMotion: (() => void) | undefined;
     return () => {
-      simulation.stop();
-      observer.disconnect();
-      nodeSelection.on('.drag', null);
-      canvas.on('.zoom', null);
-      controlsRef.current = null;
+      disposed = true;
+      observer?.disconnect();
+      themeObserver?.disconnect();
+      cleanMotion?.();
+      cameraAnimation.current?.stop();
+      instance?._destructor();
+      host.replaceChildren();
     };
-  }, [filtered]);
+  }, []);
 
-  function changeFilter(filter: typeof subjectFilter, connected: boolean) {
-    setSubjectFilter(filter);
-    setOnlyConnected(connected);
-    setSelectedId(null);
-    setHoveredId(null);
+  useEffect(() => {
+    if (!graph) return;
+    cameraAnimation.current?.stop();
+    graph.graphData(makeGraphData(filtered.nodes, filtered.edges));
+    const frame = requestAnimationFrame(() => graph.zoomToFit(0, 48));
+    return () => cancelAnimationFrame(frame);
+  }, [filtered, graph]);
+
+  useEffect(() => {
+    selectionRef.current = selectedId;
+    graph?.autoPauseRedraw(false);
+  }, [graph, selectedId]);
+
+  function moveCamera(target: Camera, immediate = false) {
+    if (!graph) return;
+    cameraAnimation.current?.stop();
+    const start = { ...graph.centerAt(), scale: graph.zoom() };
+    const update = (progress: number) => {
+      graph.centerAt(
+        start.x + (target.x - start.x) * progress,
+        start.y + (target.y - start.y) * progress,
+      );
+      graph.zoom(start.scale + (target.scale - start.scale) * progress);
+    };
+    if (immediate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) update(1);
+    else cameraAnimation.current = animate(0, 1, {
+      duration: 0.24, ease: [0.23, 1, 0.32, 1], onUpdate: update,
+    });
   }
 
-  function clearSelection() {
-    setSelectedId(null);
-    setHoveredId(null);
-  }
-
-  function handleCanvasKey(event: React.KeyboardEvent<SVGSVGElement>) {
-    if (event.key === 'Escape') clearSelection();
-    if (event.target !== event.currentTarget) return;
-    const controls = controlsRef.current;
-    if (!controls) return;
-    const actions: Record<string, () => void> = {
-      ArrowUp: () => controls.pan(0, 40),
-      ArrowDown: () => controls.pan(0, -40),
-      ArrowLeft: () => controls.pan(40, 0),
-      ArrowRight: () => controls.pan(-40, 0),
-      '+': () => controls.scale(1.25),
-      '-': () => controls.scale(0.8),
-      '0': controls.fit,
-    };
-    const action = Object.hasOwn(actions, event.key) ? actions[event.key] : undefined;
-    if (action) {
-      event.preventDefault();
-      action();
+  function adjustView(factor: number | null, immediate = false) {
+    if (!graph) return;
+    if (factor !== null) {
+      moveCamera({ ...graph.centerAt(), scale: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, graph.zoom() * factor)) }, immediate);
+      return;
     }
+    const bounds = graph.getGraphBbox();
+    if (!bounds) return;
+    const { x: [left, right], y: [top, bottom] } = bounds;
+    moveCamera({
+      x: (left + right) / 2,
+      y: (top + bottom) / 2,
+      scale: Math.max(MIN_ZOOM, Math.min(2, (graph.width() - 96) / (right - left), (graph.height() - 96) / (bottom - top))),
+    }, immediate);
+  }
+
+  function selectNode(id: string, immediate = false) {
+    setSelectedId(id);
+    const node = graph?.graphData().nodes.find((candidate) => candidate.id === id);
+    if (graph && node) moveCamera({ x: node.x, y: node.y, scale: graph.zoom() }, immediate);
+  }
+
+  function handleCanvasKey(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Escape') setSelectedId('');
+    if (!graph) return;
+    if (['+', '=', '-', '0'].includes(event.key)) {
+      event.preventDefault();
+      adjustView(event.key === '0' ? null : event.key === '-' ? 0.8 : 1.25, true);
+      return;
+    }
+    const offsets = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+    if (!Object.hasOwn(offsets, event.key)) return;
+    event.preventDefault();
+    const [horizontal, vertical] = offsets[event.key as keyof typeof offsets];
+    const center = graph.centerAt();
+    const scale = graph.zoom();
+    moveCamera({ x: center.x + horizontal * 40 / scale, y: center.y + vertical * 40 / scale, scale }, true);
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {(['all', '408', 'math1', 'english1'] as const).map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => changeFilter(key, onlyConnected)}
-              aria-pressed={subjectFilter === key}
-              className={[
-                'rounded-full px-3 py-1 text-xs transition-colors cursor-pointer',
-                subjectFilter === key
-                  ? 'bg-[var(--accent)] font-medium text-[var(--bg)]'
-                  : 'border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-muted)] hover:text-[var(--text)]',
-              ].join(' ')}
-            >
-              {key === 'all' ? '全部学科' : SUBJECT_META[key].label}
-            </button>
-          ))}
-        </div>
-
-        <label className="inline-flex items-center gap-2 text-xs text-[var(--text-muted)] cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={onlyConnected}
-            onChange={(event) => changeFilter(subjectFilter, event.target.checked)}
-            className="accent-[var(--accent)]"
-          />
-          <span>仅显示有可见关联的节点</span>
-        </label>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="relative self-start overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
-          <div className="absolute right-3 top-3 z-10 flex gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-1">
-            {VIEW_CONTROLS.map(({ label, icon: Icon, factor }) => (
-              <button
-                key={label}
-                type="button"
-                aria-label={label}
-                title={label}
-                onClick={() => factor === null ? controlsRef.current?.fit() : controlsRef.current?.scale(factor)}
-                className="grid size-9 cursor-pointer place-items-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]"
-              >
-                <Icon size={16} aria-hidden="true" />
-              </button>
+    <TooltipProvider delayDuration={200}>
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h1 className="font-editorial text-2xl font-semibold text-[var(--text)] sm:text-3xl">知识图谱</h1>
+        <Tabs className="ml-auto min-w-0" value={subjectFilter} onValueChange={(value) => {
+          setSubjectFilter(value as SubjectFilter);
+          setSelectedId('');
+        }}>
+          <TabsList aria-label="学科筛选" className="h-auto max-w-full flex-wrap">
+            {FILTERS.map((key) => (
+              <TabsTrigger key={key} value={key}>{key === 'all' ? '全部学科' : SUBJECT_META[key].label}</TabsTrigger>
             ))}
+          </TabsList>
+        </Tabs>
+      </header>
+      <div className={`relative grid grid-cols-[minmax(0,1fr)] gap-3 ${sidebarOpen ? 'lg:grid-cols-[minmax(0,1fr)_300px]' : ''}`}>
+        <Card className="relative min-w-0 overflow-hidden">
+          <div className="absolute right-3 top-3 z-10 flex gap-1 rounded-xl border border-border bg-background/90 p-1 shadow-sm">
+            {VIEW_CONTROLS.map(({ label, icon: Icon, factor }) => (
+              <Tooltip key={label}>
+                <TooltipTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" aria-label={label}
+                    disabled={!graph || !filtered.nodes.length} onClick={(event) => adjustView(factor, event.detail === 0)}>
+                    <Icon className="size-4" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{label}</TooltipContent>
+              </Tooltip>
+            ))}
+            <Button type="button" variant="ghost" size="icon" className="size-11 sm:size-9"
+              aria-label={sidebarOpen ? '收起图谱侧栏' : '展开图谱侧栏'}
+              aria-expanded={sidebarOpen} aria-controls="graph-sidebar"
+              title={sidebarOpen ? '收起图谱侧栏' : '展开图谱侧栏'}
+              onClick={() => setSidebarOpen((open) => !open)}>
+              <PanelRight className="size-4" aria-hidden="true" />
+            </Button>
           </div>
-          {filtered.visibleNodes.length === 0 && (
-            <p className="pointer-events-none absolute inset-0 grid place-items-center px-8 text-center text-sm text-[var(--text-muted)]">
-              当前筛选下没有节点。取消关联筛选或切换学科查看。
+          <div ref={container} role="group" tabIndex={0} aria-label="知识图谱画布"
+            onKeyDown={handleCanvasKey}
+            onPointerDownCapture={() => cameraAnimation.current?.stop()}
+            onWheelCapture={() => cameraAnimation.current?.stop()}
+            className="h-[max(420px,calc(100dvh-10rem))] w-full touch-none overflow-hidden sm:h-[max(480px,calc(100dvh-8rem))]" />
+          {(rendererFailed || !filtered.nodes.length) && (
+            <p role="status" className="pointer-events-none absolute inset-0 grid place-items-center px-8 text-center text-sm text-muted-foreground">
+              {rendererFailed ? '无法加载图谱画布。展开侧栏可通过知识点列表查看关联。' : '当前筛选下没有节点。展开侧栏调整筛选。'}
             </p>
           )}
-          <svg
-            ref={svgRef}
-            viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
-            className="block h-[420px] w-full touch-none cursor-grab select-none active:cursor-grabbing sm:h-[520px]"
-            role="group"
-            tabIndex={0}
-            aria-label="跨科知识点关联图谱"
-            onKeyDown={handleCanvasKey}
-            onClick={(event) => {
-              if (event.target === event.currentTarget) clearSelection();
-            }}
-          >
-            <g ref={sceneRef}>
-              <g aria-hidden="true" className="pointer-events-none">
-                {filtered.visibleEdges.map((edge) => {
-                  const source = filtered.positions.get(edge.source)!;
-                  const target = filtered.positions.get(edge.target)!;
-                  const highlighted = activeId === edge.source || activeId === edge.target;
-                  return (
-                    <line
-                      key={`${edge.kind}:${edge.source}:${edge.target}`}
-                      x1={source.x}
-                      y1={source.y}
-                      x2={target.x}
-                      y2={target.y}
-                      stroke={highlighted ? 'var(--accent)' : 'var(--text-muted)'}
-                      strokeWidth={highlighted ? 2 : 1}
-                      strokeDasharray={edge.kind === 'prerequisite' ? undefined : '4 3'}
-                      opacity={highlighted ? 0.9 : activeId ? 0.1 : 0.42}
-                      vectorEffect="non-scaling-stroke"
-                      className="motion-safe:transition-opacity"
-                    />
-                  );
-                })}
-              </g>
-              {filtered.visibleNodes.map((node) => {
-                const point = filtered.positions.get(node.id)!;
-                const color = SUBJECT_META[node.subjectId]?.color ?? '#78716c';
-                const isActive = activeId === node.id;
-                const isNeighbor = neighbors.has(node.id);
-                return (
-                  <g
-                    key={node.id}
-                    data-graph-node={node.id}
-                    transform={`translate(${point.x}, ${point.y})`}
-                    onClick={() => setSelectedId(node.id)}
-                    onPointerEnter={(event) => {
-                      if (event.pointerType === 'mouse') setHoveredId(node.id);
-                    }}
-                    onPointerLeave={() => setHoveredId(null)}
-                    onFocus={(event) => {
-                      if (!event.currentTarget.matches(':focus-visible')) return;
-                      setHoveredId(node.id);
-                      controlsRef.current?.focus(node.id);
-                    }}
-                    onBlur={() => setHoveredId(null)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        setSelectedId(node.id);
-                      }
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={node.title}
-                    aria-pressed={selectedId === node.id}
-                    opacity={activeId && !isActive && !isNeighbor ? 0.24 : 1}
-                    className="cursor-grab active:cursor-grabbing motion-safe:transition-opacity"
-                  >
-                    <title>{node.title}</title>
-                    <circle r={13} fill="transparent" />
-                    {isActive && <circle r={12} fill="none" stroke="var(--text)" strokeWidth={1.5} />}
-                    <circle
-                      r={node.isPublished ? 7.5 : 5.5}
-                      fill={node.isPublished ? color : 'var(--surface)'}
-                      stroke={color}
-                      strokeWidth={2}
-                    />
-                    {isActive && (
-                      <text
-                        y={-19}
-                        textAnchor="middle"
-                        paintOrder="stroke"
-                        stroke="var(--surface)"
-                        strokeWidth={4}
-                        aria-hidden="true"
-                        className="pointer-events-none fill-[var(--text)] text-xs font-medium"
-                      >
-                        {node.title}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-            </g>
-          </svg>
-        </div>
+          <p className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-background/90 px-2 py-1 text-xs tabular-nums text-muted-foreground">
+            {filtered.nodes.length} 个节点 · {filtered.edges.length} 条关联
+          </p>
+        </Card>
 
-        {/* Inspector side card */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          {selectedNode ? (
-            <div className="space-y-4">
-              <div>
-                <div className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-                  {selectedNode.courseShortTitle} · {selectedNode.status}
+        <aside id="graph-sidebar" aria-label="图谱筛选与节点详情" hidden={!sidebarOpen}
+          className="absolute inset-y-0 right-0 z-20 w-[min(300px,100%)] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-background shadow-lg lg:relative lg:z-auto lg:max-h-[max(480px,calc(100dvh-8rem))] lg:w-auto lg:min-w-0 lg:shadow-none">
+          <CardHeader className="space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">筛选与详情</CardTitle>
+              <Button type="button" variant="ghost" size="icon" className="size-11 lg:hidden"
+                aria-label="关闭图谱侧栏" onClick={() => {
+                  setSidebarOpen(false);
+                  container.current?.focus();
+                }}>
+                <X className="size-4" aria-hidden="true" />
+              </Button>
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2.5 text-xs text-muted-foreground">
+              <Switch checked={onlyConnected} onCheckedChange={(checked) => {
+                setOnlyConnected(checked);
+                setSelectedId('');
+              }} />
+              仅显示有可见关联的节点
+            </label>
+              <label className="grid gap-1.5 text-xs text-muted-foreground">
+                定位知识点
+                <select value={selectedNode?.id ?? ''} onChange={(event) => selectNode(event.target.value, true)}
+                  disabled={!filtered.nodes.length}
+                  className="w-full min-w-0 rounded-md border border-border bg-background px-2 py-2 text-foreground">
+                  <option value="">选择知识点</option>
+                  {filtered.nodes.map((node) => <option key={node.id} value={node.id}>{node.title}</option>)}
+                </select>
+              </label>
+            </CardHeader>
+            {selectedNode ? (
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant="secondary">{selectedNode.courseShortTitle}</Badge>
+                    <Badge variant={selectedNode.status === '已掌握' ? 'success' : selectedNode.status === '学习中' ? 'warning' : 'muted'}>
+                      {selectedNode.status}
+                    </Badge>
+                  </div>
+                  <CardTitle>{selectedNode.title}</CardTitle>
                 </div>
-                <h3 className="mt-1 font-editorial text-lg font-semibold text-[var(--text)]">
-                  {selectedNode.title}
-                </h3>
-              </div>
-
-              <a
-                href={selectedNode.href}
-                className="inline-flex w-full items-center justify-center rounded-xl bg-[var(--accent)] px-4 py-2 text-xs font-medium text-[var(--bg)] hover:opacity-90 transition-opacity"
-              >
-                {selectedNode.isPublished ? '阅读该知识点 →' : '查看待学占位节点 →'}
-              </a>
-
-              <div>
-                <div className="mb-2 text-xs font-medium text-[var(--text-muted)]">
-                  关联节点 ({selectedNeighbors.length})
+                <Button asChild className="w-full">
+                  <a href={selectedNode.href}>
+                    {selectedNode.isPublished ? '阅读该知识点' : '查看待学占位节点'}
+                    <ArrowUpRight className="size-3.5" />
+                  </a>
+                </Button>
+                <Separator />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  关联节点 <Badge variant="outline">{selectedNeighbors.length}</Badge>
                 </div>
-                {selectedNeighbors.length > 0 ? (
+                {selectedNeighbors.length ? (
                   <ul className="space-y-1.5">
-                    {selectedNeighbors.map((nb) => (
-                      <li key={nb.id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedId(nb.id);
-                            controlsRef.current?.focus(nb.id);
-                          }}
-                          className="flex w-full items-center justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] px-2.5 py-1.5 text-left text-xs hover:border-[var(--accent)] cursor-pointer"
-                        >
-                          <span className="truncate text-[var(--text)]">{nb.title}</span>
-                          <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
-                            {nb.courseShortTitle}
-                          </span>
-                        </button>
+                    {selectedNeighbors.map((neighbor) => (
+                      <li key={neighbor.id}>
+                        <Button type="button" variant="outline" size="sm" className="w-full justify-between"
+                          onClick={(event) => selectNode(neighbor.id, event.detail === 0)}>
+                          <span className="truncate">{neighbor.title}</span>
+                          <span className="shrink-0 text-[10px] text-muted-foreground">{neighbor.courseShortTitle}</span>
+                        </Button>
                       </li>
                     ))}
                   </ul>
-                ) : (
-                  <p className="text-xs text-[var(--text-muted)]">暂无显式关联节点。</p>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3 text-xs leading-relaxed text-[var(--text-muted)]">
-              <h3 className="font-editorial text-base font-semibold text-[var(--text)]">
-                图谱说明
-              </h3>
-              <p>
-                实心圆点代表<strong>已写入</strong>的知识点，空心圆点代表大纲中的<strong>待学占位节点</strong>。
-              </p>
-              <p>拖动空白处平移，滚轮或双指缩放。拖动节点可重新排列，点击节点查看关联与阅读入口。</p>
-              <div className="space-y-1.5 pt-2">
-                {Object.entries(SUBJECT_META).map(([k, meta]) => (
-                  <div key={k} className="flex items-center gap-2">
-                    <span
-                      className="inline-block h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: meta.color }}
-                    />
-                    <span>{meta.label}</span>
+                ) : <p className="text-xs text-muted-foreground">暂无显式关联节点。</p>}
+              </CardContent>
+            ) : (
+              <CardContent className="space-y-3">
+                <CardDescription>拖动空白处平移，滚轮或双指缩放。拖动节点可重新排列，点击节点查看关联。实心为已写入，空心为待学。</CardDescription>
+                <Separator />
+                {Object.values(SUBJECT_META).map(({ label, color }) => (
+                  <div key={label} className="flex items-center gap-2.5 text-xs">
+                    <span className="size-2.5 rounded-full" style={{ backgroundColor: color }} />{label}
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-        </div>
+              </CardContent>
+            )}
+        </aside>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

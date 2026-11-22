@@ -3,7 +3,7 @@ import '@/styles/global.css';
 import 'katex/dist/katex.min.css';
 import { SITE } from '@/config/site';
 import TopNav from '@/components/layout/TopNav.astro';
-import SearchModal from '@/components/layout/SearchModal.astro';
+import { SearchCommand } from '@/components/layout/SearchCommand';
 
 interface Props {
   title?: string;
@@ -33,11 +33,51 @@ const pageTitle = title ? `${title} · ${SITE.nickname}` : SITE.title;
       })();
     </script>
   </head>
-  <body class="flex min-h-screen flex-col">
+  <body class="relative flex min-h-screen flex-col overflow-x-clip">
+    <!-- Subtle Morning Frost Sky Ambient Light Aura -->
+    <div
+      aria-hidden="true"
+      class="ambient-sky-aura pointer-events-none fixed inset-x-0 top-0 -z-10 h-[34rem]"
+    ></div>
+
     <TopNav />
     <main class:list={['page-content flex-1', wide ? 'w-full' : 'mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8']}>
       <slot />
     </main>
-    <SearchModal />
+    <SearchCommand client:idle />
+
+    <!-- Lightweight delegated Spotlight pointer tracker (desktop fine pointer only) -->
+    <script is:inline>
+      (() => {
+        if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+        let rafId = 0;
+        let lastTarget = null;
+        let clientX = 0;
+        let clientY = 0;
+
+        document.addEventListener(
+          'pointermove',
+          (e) => {
+            if (e.pointerType !== 'mouse') return;
+            const card = e.target instanceof Element ? e.target.closest('[data-spotlight]') : null;
+            if (!card) return;
+            lastTarget = card;
+            clientX = e.clientX;
+            clientY = e.clientY;
+            if (rafId) return;
+            rafId = requestAnimationFrame(() => {
+              rafId = 0;
+              if (!lastTarget) return;
+              const rect = lastTarget.getBoundingClientRect();
+              lastTarget.style.setProperty('--spot-x', `${clientX - rect.left}px`);
+              lastTarget.style.setProperty('--spot-y', `${clientY - rect.top}px`);
+            });
+          },
+          { passive: true },
+        );
+      })();
+    </script>
   </body>
 </html>

@@ -1,11 +1,16 @@
 ---
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 ---
 <button
   type="button"
   data-theme-toggle
   aria-label="切换浅色/暗色主题"
   title="切换浅色/暗色主题"
-  class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors cursor-pointer"
+  class={cn(
+    buttonVariants({ variant: 'outline', size: 'icon' }),
+    'rounded-full bg-card/80 text-muted-foreground hover:text-foreground',
+  )}
 >
   <svg
     class="h-4 w-4 dark:hidden"

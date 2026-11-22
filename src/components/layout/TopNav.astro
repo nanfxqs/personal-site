@@ -1,5 +1,7 @@
 ---
 import { SITE } from '@/config/site';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import ThemeToggle from './ThemeToggle.astro';
 
 const currentPath = Astro.url.pathname;
@@ -10,52 +12,48 @@ function isActive(href: string): boolean {
 }
 
 const subjectLinks = [
-  { label: '408', href: '/kb/408' },
-  { label: '数学一', href: '/kb/math1' },
-  { label: '英语一', href: '/kb/english1' },
+  { label: '408', href: '/kb/408', dot: 'bg-[var(--subject-408)]' },
+  { label: '数学一', href: '/kb/math1', dot: 'bg-[var(--subject-math1)]' },
+  { label: '英语一', href: '/kb/english1', dot: 'bg-[var(--subject-english1)]' },
 ];
 ---
 
 <header
-  class="site-nav sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg)]/85 backdrop-blur-md"
+  class="site-nav sticky top-0 z-40 border-b border-border/70 bg-background/72 backdrop-blur-xl backdrop-saturate-150 shadow-[inset_0_-1px_0_rgba(255,255,255,0.22)] dark:shadow-[inset_0_-1px_0_rgba(186,230,253,0.06)]"
 >
   <div class="mx-auto flex h-15 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
     <a
       href="/"
-      class="flex items-baseline gap-2 font-editorial text-xl font-semibold tracking-tight text-[var(--text)] hover:opacity-75 transition-opacity"
+      class="flex items-center gap-2 font-editorial text-xl font-semibold tracking-tight text-foreground transition-opacity hover:opacity-80"
     >
+      <span class="inline-block h-2 w-2 rounded-full bg-primary shadow-[0_0_10px_var(--primary)]"></span>
       <span class="italic">{SITE.nickname}.</span>
-      <span class="hidden text-[11px] font-sans font-normal tracking-wider uppercase text-[var(--text-muted)] sm:inline">
-        Monochrome Edition
-      </span>
     </a>
 
-    <nav aria-label="主导航" class="hidden items-center gap-2 md:flex">
+    <nav aria-label="主导航" class="hidden items-center gap-1 md:flex">
       <a
         href="/"
-        class:list={[
-          'rounded-full px-3.5 py-1.5 text-sm transition-colors',
-          isActive('/')
-            ? 'bg-[var(--surface-subtle)] font-medium text-[var(--text)]'
-            : 'text-[var(--text-muted)] hover:text-[var(--text)]',
-        ]}
+        class={cn(
+          buttonVariants({ variant: isActive('/') ? 'secondary' : 'ghost', size: 'sm' }),
+          'rounded-full text-[13px]',
+          isActive('/') && 'font-semibold text-secondary-foreground',
+        )}
       >
         首页
       </a>
       <a
         href="/journal"
-        class:list={[
-          'rounded-full px-3.5 py-1.5 text-sm transition-colors',
-          isActive('/journal')
-            ? 'bg-[var(--surface-subtle)] font-medium text-[var(--text)]'
-            : 'text-[var(--text-muted)] hover:text-[var(--text)]',
-        ]}
+        class={cn(
+          buttonVariants({ variant: isActive('/journal') ? 'secondary' : 'ghost', size: 'sm' }),
+          'rounded-full text-[13px]',
+          isActive('/journal') && 'font-semibold text-secondary-foreground',
+        )}
       >
         日常
       </a>
 
-      <!-- Exam Subjects wrapped with subtle animated monochrome border -->
-      <div class="subject-pill-wrap mx-1">
+      <!-- Exam Subjects wrapped with subtle luminous frost aura -->
+      <div class="subject-pill-wrap mx-1.5">
         <div class="subject-pill-inner flex items-center gap-0.5 px-1 py-0.5">
           {
             subjectLinks.map((link) => {
@@ -63,14 +61,20 @@ const subjectLinks = [
               return (
                 <a
                   href={link.href}
-                  class:list={[
-                    'rounded-full px-3 py-1 text-xs transition-all',
+                  class={cn(
+                    'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors duration-200',
                     active
-                      ? 'bg-[var(--text)] font-medium text-[var(--bg)] shadow-xs'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text)]',
-                  ]}
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
+                  )}
                 >
-                  {link.label}
+                  <span
+                    class={cn(
+                      'h-1.5 w-1.5 rounded-full',
+                      active ? 'bg-primary-foreground' : link.dot,
+                    )}
+                  />
+                  <span>{link.label}</span>
                 </a>
               );
             })
@@ -80,12 +84,11 @@ const subjectLinks = [
 
       <a
         href="/graph"
-        class:list={[
-          'rounded-full px-3.5 py-1.5 text-sm transition-colors',
-          isActive('/graph')
-            ? 'bg-[var(--surface-subtle)] font-medium text-[var(--text)]'
-            : 'text-[var(--text-muted)] hover:text-[var(--text)]',
-        ]}
+        class={cn(
+          buttonVariants({ variant: isActive('/graph') ? 'secondary' : 'ghost', size: 'sm' }),
+          'rounded-full text-[13px]',
+          isActive('/graph') && 'font-semibold text-secondary-foreground',
+        )}
       >
         知识图谱
       </a>
@@ -95,7 +98,10 @@ const subjectLinks = [
       <button
         type="button"
         data-open-search
-        class="inline-flex h-8 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-xs text-[var(--text-muted)] hover:border-[var(--text)] hover:text-[var(--text)] transition-colors cursor-pointer"
+        class={cn(
+          buttonVariants({ variant: 'outline', size: 'sm' }),
+          'h-9 sm:h-8 rounded-full bg-card/75 px-3 text-muted-foreground backdrop-blur-md hover:text-foreground',
+        )}
       >
         <svg
           class="h-3.5 w-3.5"
@@ -103,12 +109,14 @@ const subjectLinks = [
           fill="none"
           stroke="currentColor"
           stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
         >
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.3-4.3" />
         </svg>
-        <span class="hidden sm:inline">搜索</span>
-        <kbd class="hidden rounded border border-[var(--border)] px-1 text-[10px] font-mono sm:inline">
+        <span class="hidden sm:inline text-xs">搜索</span>
+        <kbd class="hidden h-5 items-center rounded border border-border bg-muted/80 px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex">
           ⌘K
         </kbd>
       </button>
@@ -116,26 +124,26 @@ const subjectLinks = [
     </div>
   </div>
 
-  <!-- Mobile compact nav -->
+  <!-- Mobile compact nav (touch-friendly targets) -->
   <nav
     aria-label="移动端导航"
-    class="flex items-center gap-1.5 overflow-x-auto border-t border-[var(--border)] px-4 py-1.5 md:hidden"
+    class="no-scrollbar flex items-center gap-1.5 overflow-x-auto border-t border-border/60 px-4 py-2 md:hidden"
   >
     <a
       href="/"
-      class:list={[
-        'shrink-0 rounded-full px-3 py-1 text-xs',
-        isActive('/') ? 'bg-[var(--surface-subtle)] font-medium text-[var(--text)]' : 'text-[var(--text-muted)]',
-      ]}
+      class={cn(
+        buttonVariants({ variant: isActive('/') ? 'secondary' : 'ghost', size: 'sm' }),
+        'h-8 shrink-0 rounded-full px-3 text-xs',
+      )}
     >
       首页
     </a>
     <a
       href="/journal"
-      class:list={[
-        'shrink-0 rounded-full px-3 py-1 text-xs',
-        isActive('/journal') ? 'bg-[var(--surface-subtle)] font-medium text-[var(--text)]' : 'text-[var(--text-muted)]',
-      ]}
+      class={cn(
+        buttonVariants({ variant: isActive('/journal') ? 'secondary' : 'ghost', size: 'sm' }),
+        'h-8 shrink-0 rounded-full px-3 text-xs',
+      )}
     >
       日常
     </a>
@@ -145,12 +153,12 @@ const subjectLinks = [
           subjectLinks.map((link) => (
             <a
               href={link.href}
-              class:list={[
-                'rounded-full px-2.5 py-0.5 text-[11px]',
+              class={cn(
+                'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
                 isActive(link.href)
-                  ? 'bg-[var(--text)] font-medium text-[var(--bg)]'
-                  : 'text-[var(--text-muted)]',
-              ]}
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
             >
               {link.label}
             </a>
@@ -160,10 +168,10 @@ const subjectLinks = [
     </div>
     <a
       href="/graph"
-      class:list={[
-        'shrink-0 rounded-full px-3 py-1 text-xs',
-        isActive('/graph') ? 'bg-[var(--surface-subtle)] font-medium text-[var(--text)]' : 'text-[var(--text-muted)]',
-      ]}
+      class={cn(
+        buttonVariants({ variant: isActive('/graph') ? 'secondary' : 'ghost', size: 'sm' }),
+        'h-8 shrink-0 rounded-full px-3 text-xs',
+      )}
     >
       图谱
     </a>

@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 export interface StepItem {
   label: string;
@@ -36,94 +45,117 @@ export function StepPlayer({
   }, [playing, current, total, intervalMs, onChange]);
 
   return (
-    <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)] p-3.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              setPlaying(false);
-              onChange(0);
-            }}
-            disabled={current === 0}
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40 cursor-pointer"
-            title="回到起点"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setPlaying(false);
-              onChange(Math.max(0, current - 1));
-            }}
-            disabled={current === 0}
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40 cursor-pointer"
-            title="上一步"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (current >= total - 1) {
-                onChange(0);
-                setPlaying(true);
-              } else {
-                setPlaying((p) => !p);
-              }
-            }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity cursor-pointer"
-          >
-            {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-            <span>{playing ? '暂停' : '自动播放'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setPlaying(false);
-              onChange(Math.min(total - 1, current + 1));
-            }}
-            disabled={current >= total - 1}
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40 cursor-pointer"
-            title="下一步"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+    <TooltipProvider delayDuration={200}>
+      <div className="mt-4 rounded-xl border border-border bg-muted/45 p-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => {
+                    setPlaying(false);
+                    onChange(0);
+                  }}
+                  disabled={current === 0}
+                  aria-label="回到起点"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>回到起点</TooltipContent>
+            </Tooltip>
 
-        <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-muted)]">
-          <span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => {
+                    setPlaying(false);
+                    onChange(Math.max(0, current - 1));
+                  }}
+                  disabled={current === 0}
+                  aria-label="上一步"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>上一步</TooltipContent>
+            </Tooltip>
+
+            <Button
+              type="button"
+              size="xs"
+              onClick={() => {
+                if (current >= total - 1) {
+                  onChange(0);
+                  setPlaying(true);
+                } else {
+                  setPlaying((p) => !p);
+                }
+              }}
+              className="px-3"
+            >
+              {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+              <span>{playing ? '暂停' : '自动播放'}</span>
+            </Button>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => {
+                    setPlaying(false);
+                    onChange(Math.min(total - 1, current + 1));
+                  }}
+                  disabled={current >= total - 1}
+                  aria-label="下一步"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>下一步</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <Badge variant="outline" className="font-mono text-[11px] text-muted-foreground">
             Step {current + 1} / {total}
-          </span>
+          </Badge>
         </div>
-      </div>
 
-      {/* Progress bar */}
-      <div className="mt-3 flex gap-1">
-        {steps.map((s, idx) => (
-          <button
-            key={idx}
-            type="button"
-            onClick={() => {
-              setPlaying(false);
-              onChange(idx);
-            }}
-            title={s.label}
-            className={[
-              'h-1.5 flex-1 rounded-full transition-colors cursor-pointer',
-              idx <= current ? 'bg-[var(--accent)]' : 'bg-[var(--border)]',
-            ].join(' ')}
-          />
-        ))}
-      </div>
-
-      {activeStep && (
-        <div className="mt-3 text-sm leading-relaxed text-[var(--text)]">
-          <span className="mr-2 font-semibold text-[var(--accent)]">{activeStep.label}</span>
-          <span className="text-[var(--text-muted)]">{activeStep.description}</span>
+        {/* Interactive step progress segments */}
+        <div className="mt-3 flex gap-1">
+          {steps.map((s, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                setPlaying(false);
+                onChange(idx);
+              }}
+              title={s.label}
+              aria-label={`跳转到第 ${idx + 1} 步：${s.label}`}
+              className={cn(
+                'h-1.5 flex-1 rounded-full transition-colors cursor-pointer',
+                idx <= current ? 'bg-primary' : 'bg-border hover:bg-muted-foreground/40',
+              )}
+            />
+          ))}
         </div>
-      )}
-    </div>
+
+        {activeStep && (
+          <div className="mt-3 rounded-lg border border-border/70 bg-card/80 px-3 py-2 text-sm leading-relaxed">
+            <span className="mr-2 font-semibold text-foreground">{activeStep.label}</span>
+            <span className="text-muted-foreground">{activeStep.description}</span>
+          </div>
+        )}
+      </div>
+    </TooltipProvider>
   );
 }

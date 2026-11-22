@@ -6,17 +6,8 @@ import { getKnowledgeIndex } from '@/lib/kb-graph';
 const index = await getKnowledgeIndex();
 ---
 
-<BaseLayout title="跨科知识图谱" wide>
-  <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-    <header class="mb-8">
-      <h1 class="font-editorial text-3xl font-semibold text-[var(--text)] sm:text-4xl">
-        跨科知识图谱
-      </h1>
-      <p class="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--text-muted)]">
-        自动聚合 408（四书）、数学一（三科）与英语一之间的前置依赖与跨科引用。共收录 {index.graph.nodes.length} 个知识点节点、{index.graph.edges.length} 条显式关联。
-      </p>
-    </header>
-
+<BaseLayout title="知识图谱" wide>
+  <div class="mx-auto px-3 py-4 sm:px-6 sm:py-5 lg:px-8">
     <KnowledgeGraph
       client:load
       nodes={index.graph.nodes}

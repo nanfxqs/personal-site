@@ -4,6 +4,8 @@ import BaseLayout from './BaseLayout.astro';
 import CourseSidebar from '@/components/kb/CourseSidebar.astro';
 import RightRail from '@/components/kb/RightRail.astro';
 import ReadingProgress from '@/components/kb/ReadingProgress.astro';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import type { ResolvedTopic } from '@/lib/kb-graph';
 
 interface Props {
@@ -26,11 +28,14 @@ const { topic, headings = [] } = Astro.props;
         aria-expanded="true"
         aria-controls="push-left-sidebar"
         title="展开或折叠章节目录"
-        class="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/92 px-3.5 py-2 text-xs font-medium text-[var(--text)] shadow-md backdrop-blur-md transition-all hover:border-[var(--text)] hover:shadow-lg cursor-pointer"
+        class={cn(
+          buttonVariants({ variant: 'outline', size: 'sm' }),
+          'pointer-events-auto rounded-full bg-card/90 px-3.5 shadow-md backdrop-blur-md hover:shadow-lg',
+        )}
       >
         <svg
           id="left-tree-icon"
-          class="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform duration-200"
+          class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -43,7 +48,7 @@ const { topic, headings = [] } = Astro.props;
           <path d="M9 3v18" />
         </svg>
         <span id="left-tree-label" class="whitespace-nowrap">
-          章节目录 <span class="hidden sm:inline text-[var(--text-muted)]">· {topic.courseShortTitle}</span>
+          章节目录 <span class="hidden sm:inline text-muted-foreground">· {topic.courseShortTitle}</span>
         </span>
       </button>
 
@@ -53,12 +58,15 @@ const { topic, headings = [] } = Astro.props;
         aria-expanded="true"
         aria-controls="push-right-sidebar"
         title="展开或折叠本页目录与关联"
-        class="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/92 px-3.5 py-2 text-xs font-medium text-[var(--text)] shadow-md backdrop-blur-md transition-all hover:border-[var(--text)] hover:shadow-lg cursor-pointer"
+        class={cn(
+          buttonVariants({ variant: 'outline', size: 'sm' }),
+          'pointer-events-auto rounded-full bg-card/90 px-3.5 shadow-md backdrop-blur-md hover:shadow-lg',
+        )}
       >
         <span id="right-toc-label" class="whitespace-nowrap">本页目录与关联</span>
         <svg
           id="right-toc-icon"
-          class="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform duration-200"
+          class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -150,7 +158,7 @@ const { topic, headings = [] } = Astro.props;
       <!-- Left Sticky Push Sidebar (Independent Scroll, clears floating toggle pill) -->
       <aside
         id="push-left-sidebar"
-        class="hidden lg:block shrink-0 sticky top-[7.5rem] h-[calc(100vh-8.5rem)] w-64 mr-8 opacity-100 overflow-y-auto overflow-x-hidden pr-3 border-r border-[var(--border)] transition-all duration-300 ease-out"
+        class="hidden lg:block shrink-0 sticky top-[7.5rem] h-[calc(100vh-8.5rem)] w-64 mr-8 opacity-100 overflow-y-auto overflow-x-hidden pr-3 border-r border-border transition-[width,margin,opacity,padding] duration-250 ease-[var(--ease-out)]"
       >
         <div class="w-60 pb-6">
           <CourseSidebar
@@ -164,7 +172,7 @@ const { topic, headings = [] } = Astro.props;
       <!-- Main Reading & Interactive Canvas (smoothly expands when sidebars collapse) -->
       <article
         data-pagefind-body
-        class="min-w-0 flex-1 transition-all duration-300 ease-out"
+        class="min-w-0 flex-1"
       >
         <div class="mx-auto max-w-3xl">
           <slot />
@@ -174,7 +182,7 @@ const { topic, headings = [] } = Astro.props;
       <!-- Right Collapsible Push Sidebar: TOC & Cross-References -->
       <aside
         id="push-right-sidebar"
-        class="hidden lg:block shrink-0 sticky top-[7.5rem] h-[calc(100vh-8.5rem)] w-60 ml-8 opacity-100 overflow-y-auto overflow-x-hidden pl-3 border-l border-[var(--border)] transition-all duration-300 ease-out"
+        class="hidden lg:block shrink-0 sticky top-[7.5rem] h-[calc(100vh-8.5rem)] w-60 ml-8 opacity-100 overflow-y-auto overflow-x-hidden pl-3 border-l border-border transition-[width,margin,opacity,padding] duration-250 ease-[var(--ease-out)]"
       >
         <div class="w-56 pb-6">
           <RightRail topic={topic} headings={headings} />
