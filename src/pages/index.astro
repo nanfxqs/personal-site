@@ -2,7 +2,6 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import MountainProgress from '@/components/home/MountainProgress.astro';
-import { SITE } from '@/config/site';
 import { getKnowledgeIndex, normalizeJournalSlug } from '@/lib/kb-graph';
 
 const index = await getKnowledgeIndex();
@@ -31,51 +30,16 @@ const courseStats408 = {
 };
 ---
 
-<BaseLayout wide>
-  <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-    <!-- Minimalist Poster Profile Header -->
-    <section class="flex flex-col justify-between gap-8 border-b border-[var(--border)] py-12 sm:py-16 lg:flex-row lg:items-end">
-      <div class="max-w-2xl space-y-4">
-        <div class="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--text-muted)]">
-          <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-          <span>{SITE.status}</span>
-        </div>
-
-        <h1 class="font-editorial text-4xl font-semibold tracking-tight text-[var(--text)] sm:text-5xl">
-          你好，我是 <span class="italic">{SITE.nickname}</span>
-        </h1>
-
-        <p class="font-editorial text-base leading-relaxed text-[var(--text-muted)] sm:text-lg">
-          {SITE.bio}
-        </p>
-      </div>
-
-      <!-- Plan A: Compact Latest Dispatch Entry -->
-      <a
-        href={latestSlug ? `/journal/${latestSlug}` : '/journal'}
-        class="group block shrink-0 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)]/70 p-4 transition-colors hover:border-[var(--text)] lg:w-80"
-      >
-        <div class="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-[var(--text-muted)]">
-          <span>Latest Dispatch</span>
-          {latestDate && <span>{latestDate}</span>}
-        </div>
-        <div class="mt-1.5 truncate font-editorial text-sm font-medium text-[var(--text)]">
-          {latestPost ? latestPost.data.title : '日常随笔、图像与影音时间线'}
-        </div>
-        <div class="mt-2 flex items-center justify-between text-xs text-[var(--text-muted)]">
-          <span>日常共 {posts.length} 篇</span>
-          <span class="group-hover:text-[var(--text)] transition-colors">进入时间线 →</span>
-        </div>
-      </a>
-    </section>
-
-    <!-- Full-Width Grand Minimalist Mountain Hero Visual -->
-    <MountainProgress
-      overallStats={index.overallStats}
-      stats408={index.subjectStats['408']}
-      statsMath1={index.subjectStats.math1}
-      statsEnglish1={index.subjectStats.english1}
-      courseStats408={courseStats408}
-    />
-  </div>
+<BaseLayout wide hideFooter>
+  <MountainProgress
+    overallStats={index.overallStats}
+    stats408={index.subjectStats['408']}
+    statsMath1={index.subjectStats.math1}
+    statsEnglish1={index.subjectStats.english1}
+    courseStats408={courseStats408}
+    journalCount={posts.length}
+    latestPostTitle={latestPost ? latestPost.data.title : null}
+    latestPostSlug={latestSlug}
+    latestPostDate={latestDate}
+  />
 </BaseLayout>

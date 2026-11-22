@@ -1,4 +1,5 @@
 ---
+import { SITE } from '@/config/site';
 import type { ProgressStats } from '@/lib/kb-graph';
 
 interface Props {
@@ -12,6 +13,10 @@ interface Props {
     os: ProgressStats;
     cn: ProgressStats;
   };
+  journalCount: number;
+  latestPostTitle: string | null;
+  latestPostSlug: string | null;
+  latestPostDate: string | null;
 }
 
 const {
@@ -20,24 +25,22 @@ const {
   statsMath1,
   statsEnglish1,
   courseStats408,
+  journalCount,
+  latestPostTitle,
+  latestPostSlug,
+  latestPostDate,
 } = Astro.props;
 
 /**
  * Compute climber position along the grand ascending main ridge:
- * Foot (90, 410) -> Mid-waist (450, 235) -> Summit (760, 76)
+ * Foothills (130, 620) -> Mid-saddle (520, 405) -> Summit (920, 152)
  */
 const climbT = Math.max(0.08, Math.min(0.98, overallStats.percent / 100));
-const climberX = 90 + (760 - 90) * climbT;
-const climberY = 410 + (76 - 410) * climbT;
+const climberX = 130 + (920 - 130) * climbT;
+const climberY = 620 + (152 - 620) * climbT;
 
-/** Helper to interpolate a point along a line segment */
-function lerpPoint(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  percent: number,
-) {
+/** Helper to interpolate a point along a route segment */
+function lerpPoint(x1: number, y1: number, x2: number, y2: number, percent: number) {
   const t = Math.max(0.18, Math.min(0.95, percent / 100));
   return {
     x: x1 + (x2 - x1) * t,
@@ -45,266 +48,482 @@ function lerpPoint(
   };
 }
 
-// Ridge progress nodes
-const nodeMath1 = lerpPoint(430, 245, 920, 145, statsMath1.percent);
-const nodeEnglish1 = lerpPoint(540, 320, 1110, 215, statsEnglish1.percent);
+// 408 Tree-Structured Ridge Fork on the western shoulder
+const node408TrunkStart = { x: 265, y: 540 };
+const node408Hub = { x: 388, y: 452 };
+const branchDS = lerpPoint(node408Hub.x, node408Hub.y, 275, 325, courseStats408.ds.percent);
+const branchCO = lerpPoint(node408Hub.x, node408Hub.y, 388, 290, courseStats408.co.percent);
+const branchOS = lerpPoint(node408Hub.x, node408Hub.y, 495, 320, courseStats408.os.percent);
+const branchCN = lerpPoint(node408Hub.x, node408Hub.y, 558, 392, courseStats408.cn.percent);
 
-// 408 tree-fork ridge nodes (trunk from (230, 342) -> fork hub (340, 288) -> 4 branches)
-const node408Hub = { x: 340, y: 288 };
-const branchDS = lerpPoint(340, 288, 265, 195, courseStats408.ds.percent);
-const branchCO = lerpPoint(340, 288, 360, 175, courseStats408.co.percent);
-const branchOS = lerpPoint(340, 288, 445, 198, courseStats408.os.percent);
-const branchCN = lerpPoint(340, 288, 490, 252, courseStats408.cn.percent);
+// Math I & English I Ridge Progress Nodes
+const nodeMath1 = lerpPoint(575, 365, 1110, 228, statsMath1.percent);
+const nodeEnglish1 = lerpPoint(735, 468, 1295, 336, statsEnglish1.percent);
+
+// Fine engraving/hatching strokes along the shaded right flank of the main peak
+const hatchLines = Array.from({ length: 18 }, (_, i) => {
+  const t = i / 17;
+  const x1 = 920 + t * 230;
+  const y1 = 152 + t * 280;
+  const len = 18 + Math.sin(t * Math.PI) * 34;
+  return { x1, y1, x2: x1 + len * 0.65, y2: y1 + len };
+});
 ---
 
-<section class="relative w-full overflow-hidden py-6 sm:py-10">
-  <!-- Poster Header Overlay -->
-  <div class="mb-4 flex flex-wrap items-end justify-between gap-4">
-    <div>
-      <div class="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--text-muted)]">
-        Ascent · 考研知识版图
+<section
+  id="home-poster"
+  class="relative flex min-h-[calc(100dvh-3.75rem)] w-full flex-col justify-between overflow-hidden bg-[var(--bg)] select-none"
+>
+  <!-- Atmospheric Paper Grain & Soft Vignette -->
+  <div aria-hidden="true" class="poster-grain pointer-events-none absolute inset-0 z-20"></div>
+  <div aria-hidden="true" class="poster-vignette pointer-events-none absolute inset-0 z-10"></div>
+
+  <!-- Top Poster Corner Anchors (Floating over negative space on md+) -->
+  <div class="relative z-30 flex flex-col justify-between gap-6 px-5 pt-7 sm:px-8 sm:pt-9 md:flex-row md:items-start lg:px-12">
+    <!-- Top-Left: Minimalist Signature & Overall Elevation -->
+    <div class="max-w-md space-y-2.5">
+      <div class="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg)]/70 px-2.5 py-0.5 text-[11px] font-mono text-[var(--text-muted)] backdrop-blur-sm">
+        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+        <span>{SITE.status}</span>
       </div>
-      <p class="mt-1 text-xs text-[var(--text-muted)]">
-        总攀登进度 <span class="font-mono font-semibold text-[var(--text)]">{overallStats.percent}%</span>
-        <span class="mx-1.5">·</span>
-        已写入 {overallStats.published} / {overallStats.total} 知识点
+
+      <div class="flex items-baseline gap-3">
+        <h1 class="font-editorial text-4xl font-semibold tracking-tight text-[var(--text)] italic sm:text-5xl">
+          {SITE.nickname}.
+        </h1>
+        <span class="font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--text-muted)]">
+          ELEV. {overallStats.percent}%
+        </span>
+      </div>
+
+      <p class="font-editorial text-sm leading-relaxed text-[var(--text-muted)] sm:text-[15px]">
+        {SITE.bio}
       </p>
     </div>
-    <a
-      href="/graph"
-      class="text-xs font-medium text-[var(--text-muted)] underline decoration-[var(--border)] underline-offset-4 hover:text-[var(--text)] transition-colors"
-    >
-      查看跨科知识图谱 →
-    </a>
+
+    <!-- Top-Right: Cartographic Metadata & Graph Entry -->
+    <div class="flex items-center justify-between gap-6 md:flex-col md:items-end md:gap-2">
+      <div class="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">
+        01 / ASCENT · {overallStats.published} OF {overallStats.total} TOPICS
+      </div>
+      <a
+        href="/graph"
+        class="group inline-flex items-center gap-2 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+      >
+        <span class="underline decoration-[var(--border)] underline-offset-4 group-hover:decoration-[var(--text)]">
+          跨科知识图谱
+        </span>
+        <span class="transition-transform group-hover:translate-x-0.5">→</span>
+      </a>
+    </div>
   </div>
 
-  <!-- Full-Width Grand Minimalist Mountain Poster SVG -->
-  <div class="relative w-full">
+  <!-- Full-Viewport Lithograph / Topographic Mountain Visual -->
+  <div class="relative z-10 flex flex-1 items-center justify-center px-1 sm:px-4 md:absolute md:inset-0 md:px-0">
     <svg
-      viewBox="0 0 1200 470"
-      class="h-auto w-full overflow-visible select-none"
+      viewBox="0 0 1440 760"
+      preserveAspectRatio="xMidYMid meet"
+      class="h-full max-h-[62vh] w-full overflow-visible md:max-h-[92vh]"
       role="img"
-      aria-label="考研知识库登山主视觉：包含 408 分叉山脊、数学一与英语一山脊进度"
+      aria-label="极简等高线高山主视觉：展示考研总体攀登进度、408 分叉山脊与数学一、英语一山脊坐标"
     >
-      <!-- Faint Horizon & Elevation Contours -->
-      <line x1="20" y1="410" x2="1180" y2="410" stroke="var(--border)" stroke-width="1" />
-      <path
-        d="M 40 375 Q 320 355 620 385 T 1160 365"
-        fill="none"
-        stroke="var(--border)"
-        stroke-width="0.8"
-        stroke-dasharray="3 5"
-        opacity="0.7"
-      />
-      <path
-        d="M 180 315 Q 520 275 880 310"
-        fill="none"
-        stroke="var(--border)"
-        stroke-width="0.8"
-        stroke-dasharray="2 6"
-        opacity="0.55"
-      />
+      <defs>
+        <!-- Soft atmospheric mist gradient for distant peaks -->
+        <linearGradient id="mist-fill-far" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--text)" stop-opacity="0.05" />
+          <stop offset="85%" stop-color="var(--bg)" stop-opacity="0" />
+        </linearGradient>
+        <linearGradient id="mist-fill-mid" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--text)" stop-opacity="0.035" />
+          <stop offset="100%" stop-color="var(--bg)" stop-opacity="0" />
+        </linearGradient>
+        <radialGradient id="lunar-halo" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="var(--text)" stop-opacity="0.07" />
+          <stop offset="65%" stop-color="var(--text)" stop-opacity="0.02" />
+          <stop offset="100%" stop-color="var(--bg)" stop-opacity="0" />
+        </radialGradient>
+      </defs>
 
-      <!-- Grand Mountain Silhouette (Main Peak + Distant Back Ridges) -->
-      <path
-        d="M 35 410 L 310 278 L 515 198 L 760 76 L 1015 245 L 1165 410"
-        fill="none"
-        stroke="var(--border)"
-        stroke-width="1.4"
-      />
-      <!-- Distant secondary peak -->
-      <path
-        d="M 590 410 L 920 145 L 1140 410"
-        fill="none"
-        stroke="var(--border)"
-        stroke-width="1"
-        opacity="0.7"
-      />
-
-      <!-- Main Ascent Spine (Foot -> Summit) -->
-      <line
-        x1="90"
-        y1="410"
-        x2="760"
-        y2="76"
-        stroke="var(--border)"
-        stroke-width="1.3"
-        stroke-dasharray="4 4"
-      />
-      <!-- Climbed solid trail behind the climber -->
-      <line
-        x1="90"
-        y1="410"
-        x2={climberX}
-        y2={climberY}
-        stroke="var(--text)"
-        stroke-width="2.2"
-        stroke-linecap="round"
-      />
-
-      <!-- Summit Marker -->
-      <g transform="translate(760, 76)">
-        <line x1="0" y1="0" x2="0" y2="-24" stroke="var(--text)" stroke-width="1.3" />
-        <polygon points="0,-24 16,-18 0,-12" fill="none" stroke="var(--text)" stroke-width="1.2" />
-        <text
-          x="22"
-          y="-14"
-          class="fill-[var(--text-muted)] font-mono text-[11px]"
-        >
-          SUMMIT · 100%
-        </text>
-      </g>
-
-      <!-- 408 Tree-Structured Ridge Fork (4 branches: DS, CO, OS, CN) -->
-      <g>
-        <!-- Trunk from main ridge to 408 hub -->
-        <line
-          x1="230"
-          y1="342"
-          x2={node408Hub.x}
-          y2={node408Hub.y}
-          stroke="var(--text-muted)"
-          stroke-width="1.5"
+      <!-- Layer 0: Subtle Cartographic Grid & Atmospheric Halo -->
+      <g data-parallax="0.18" opacity="0.7">
+        <circle cx="920" cy="210" r="175" fill="url(#lunar-halo)" />
+        <circle
+          cx="920"
+          cy="210"
+          r="92"
+          fill="none"
+          stroke="var(--border)"
+          stroke-width="0.7"
+          stroke-dasharray="2 6"
+          opacity="0.65"
         />
-        <!-- 4 Sub-ridge branches -->
-        <line x1={node408Hub.x} y1={node408Hub.y} x2="265" y2="195" stroke="var(--border)" stroke-width="1.3" />
-        <line x1={node408Hub.x} y1={node408Hub.y} x2="360" y2="175" stroke="var(--border)" stroke-width="1.3" />
-        <line x1={node408Hub.x} y1={node408Hub.y} x2="445" y2="198" stroke="var(--border)" stroke-width="1.3" />
-        <line x1={node408Hub.x} y1={node408Hub.y} x2="490" y2="252" stroke="var(--border)" stroke-width="1.3" />
-
-        <!-- Branch active progress lines -->
-        <line x1={node408Hub.x} y1={node408Hub.y} x2={branchDS.x} y2={branchDS.y} stroke="var(--text)" stroke-width="1.8" />
-        <line x1={node408Hub.x} y1={node408Hub.y} x2={branchCO.x} y2={branchCO.y} stroke="var(--text)" stroke-width="1.8" />
-        <line x1={node408Hub.x} y1={node408Hub.y} x2={branchOS.x} y2={branchOS.y} stroke="var(--text)" stroke-width="1.8" />
-        <line x1={node408Hub.x} y1={node408Hub.y} x2={branchCN.x} y2={branchCN.y} stroke="var(--text)" stroke-width="1.8" />
-
-        <!-- Interactive 408 Hub Anchor -->
-        <a href="/kb/408" class="group cursor-pointer">
-          <circle
-            cx={node408Hub.x}
-            cy={node408Hub.y}
-            r="6"
-            fill="var(--bg)"
-            stroke="var(--text)"
-            stroke-width="2"
-            class="transition-transform group-hover:scale-125"
-          />
-          <text
-            x={node408Hub.x + 12}
-            y={node408Hub.y + 4}
-            class="fill-[var(--text)] font-editorial text-[15px] font-semibold group-hover:underline"
-          >
-            408 专业基础 ({stats408.percent}%)
-          </text>
-        </a>
-
-        <!-- 408 4 Sub-branch Nodes -->
-        <a href="/kb/408#course-ds" class="group cursor-pointer">
-          <circle cx={branchDS.x} cy={branchDS.y} r="4.2" fill="var(--text)" />
-          <text x="255" y="186" text-anchor="end" class="fill-[var(--text-muted)] font-sans text-[11px] group-hover:fill-[var(--text)]">
-            数据结构 {courseStats408.ds.published}/{courseStats408.ds.total}
-          </text>
-        </a>
-        <a href="/kb/408#course-co" class="group cursor-pointer">
-          <circle cx={branchCO.x} cy={branchCO.y} r="4.2" fill="var(--text)" />
-          <text x="360" y="164" text-anchor="middle" class="fill-[var(--text-muted)] font-sans text-[11px] group-hover:fill-[var(--text)]">
-            计组 {courseStats408.co.published}/{courseStats408.co.total}
-          </text>
-        </a>
-        <a href="/kb/408#course-os" class="group cursor-pointer">
-          <circle cx={branchOS.x} cy={branchOS.y} r="4.2" fill="var(--text)" />
-          <text x="454" y="192" text-anchor="start" class="fill-[var(--text-muted)] font-sans text-[11px] group-hover:fill-[var(--text)]">
-            OS {courseStats408.os.published}/{courseStats408.os.total}
-          </text>
-        </a>
-        <a href="/kb/408#course-cn" class="group cursor-pointer">
-          <circle cx={branchCN.x} cy={branchCN.y} r="4.2" fill="var(--text)" />
-          <text x="498" y="255" text-anchor="start" class="fill-[var(--text-muted)] font-sans text-[11px] group-hover:fill-[var(--text)]">
-            计网 {courseStats408.cn.published}/{courseStats408.cn.total}
-          </text>
-        </a>
-      </g>
-
-      <!-- Math I Ridge Line & Progress Node -->
-      <g>
-        <line x1="430" y1="245" x2="920" y2="145" stroke="var(--border)" stroke-width="1.3" />
-        <line x1="430" y1="245" x2={nodeMath1.x} y2={nodeMath1.y} stroke="var(--text)" stroke-width="1.8" />
-        <a href="/kb/math1" class="group cursor-pointer">
-          <circle
-            cx={nodeMath1.x}
-            cy={nodeMath1.y}
-            r="6"
-            fill="var(--bg)"
-            stroke="var(--text)"
-            stroke-width="2"
-          />
-          <text
-            x={nodeMath1.x + 12}
-            y={nodeMath1.y - 8}
-            class="fill-[var(--text)] font-editorial text-[15px] font-semibold group-hover:underline"
-          >
-            数学一 ({statsMath1.percent}%)
-          </text>
-          <text
-            x={nodeMath1.x + 12}
-            y={nodeMath1.y + 8}
-            class="fill-[var(--text-muted)] font-mono text-[11px]"
-          >
-            高数 · 线代 · 概率论 ({statsMath1.published}/{statsMath1.total})
-          </text>
-        </a>
-      </g>
-
-      <!-- English I Ridge Line & Progress Node -->
-      <g>
-        <line x1="540" y1="320" x2="1110" y2="215" stroke="var(--border)" stroke-width="1.3" />
-        <line x1="540" y1="320" x2={nodeEnglish1.x} y2={nodeEnglish1.y} stroke="var(--text)" stroke-width="1.8" />
-        <a href="/kb/english1" class="group cursor-pointer">
-          <circle
-            cx={nodeEnglish1.x}
-            cy={nodeEnglish1.y}
-            r="6"
-            fill="var(--bg)"
-            stroke="var(--text)"
-            stroke-width="2"
-          />
-          <text
-            x={nodeEnglish1.x + 12}
-            y={nodeEnglish1.y - 6}
-            class="fill-[var(--text)] font-editorial text-[15px] font-semibold group-hover:underline"
-          >
-            英语一 ({statsEnglish1.percent}%)
-          </text>
-          <text
-            x={nodeEnglish1.x + 12}
-            y={nodeEnglish1.y + 10}
-            class="fill-[var(--text-muted)] font-mono text-[11px]"
-          >
-            词句 · 阅读 · 翻译写作 ({statsEnglish1.published}/{statsEnglish1.total})
-          </text>
-        </a>
-      </g>
-
-      <!-- The Small Lone Climber Figure Ascending the Main Ridge -->
-      <g transform={`translate(${climberX}, ${climberY})`}>
-        <!-- Subtle beacon halo -->
-        <circle cx="0" cy="-10" r="14" fill="var(--text)" opacity="0.06" />
-        <!-- Stick climber with trekking pole -->
-        <circle cx="0" cy="-16" r="3" fill="var(--text)" />
-        <line x1="0" y1="-13" x2="-1" y2="-4" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round" />
-        <line x1="-0.5" y1="-10.5" x2="4.5" y2="-8.5" stroke="var(--text)" stroke-width="1.4" stroke-linecap="round" />
-        <line x1="4.5" y1="-8.5" x2="6" y2="1" stroke="var(--text-muted)" stroke-width="1" stroke-linecap="round" />
-        <line x1="-1" y1="-4" x2="-4.5" y2="1.5" stroke="var(--text)" stroke-width="1.5" stroke-linecap="round" />
-        <line x1="-1" y1="-4" x2="2.8" y2="1.5" stroke="var(--text)" stroke-width="1.5" stroke-linecap="round" />
-        <text
-          x="-12"
-          y="-24"
-          text-anchor="end"
-          class="fill-[var(--text)] font-mono text-[11px] font-medium"
-        >
-          nanf · {overallStats.percent}%
+        <!-- Fine horizon & cartographic coordinate ticks -->
+        <line x1="36" y1="620" x2="1404" y2="620" stroke="var(--border)" stroke-width="0.9" />
+        <line x1="920" y1="90" x2="920" y2="640" stroke="var(--border)" stroke-width="0.6" stroke-dasharray="2 7" opacity="0.55" />
+        <text x="48" y="640" class="fill-[var(--text-muted)] font-mono text-[10px] tracking-[0.2em]" opacity="0.65">
+          BASE · 0M
         </text>
+        <text x="1392" y="640" text-anchor="end" class="fill-[var(--text-muted)] font-mono text-[10px] tracking-[0.2em]" opacity="0.65">
+          408 · MATH I · ENGLISH I
+        </text>
+      </g>
+
+      <!-- Layer 1: Distant Mist Mountain Silhouettes -->
+      <g data-parallax="0.38">
+        <path
+          d="M 20 620 C 170 555, 290 420, 445 365 C 580 318, 695 430, 825 320 C 960 205, 1070 155, 1185 255 C 1275 335, 1345 480, 1420 620 Z"
+          fill="url(#mist-fill-far)"
+          stroke="var(--border)"
+          stroke-width="0.9"
+          opacity="0.75"
+        />
+        <path
+          d="M 480 620 C 610 515, 725 385, 865 340 C 1010 294, 1150 385, 1345 620 Z"
+          fill="url(#mist-fill-mid)"
+          stroke="var(--border)"
+          stroke-width="0.8"
+          stroke-dasharray="4 5"
+          opacity="0.6"
+        />
+      </g>
+
+      <!-- Layer 2: Organic Topographic Contours & Shaded Slope Hatching -->
+      <g data-parallax="0.68">
+        <!-- Concentric elevation contours sweeping across the valley -->
+        <path
+          d="M 60 585 Q 340 535, 620 570 T 1360 550"
+          fill="none"
+          stroke="var(--border)"
+          stroke-width="0.75"
+          stroke-dasharray="3 6"
+          opacity="0.7"
+        />
+        <path
+          d="M 150 510 Q 470 430, 770 485 T 1300 470"
+          fill="none"
+          stroke="var(--border)"
+          stroke-width="0.75"
+          stroke-dasharray="2 5"
+          opacity="0.58"
+        />
+        <path
+          d="M 280 425 Q 610 315, 920 385 T 1220 390"
+          fill="none"
+          stroke="var(--border)"
+          stroke-width="0.75"
+          stroke-dasharray="2 6"
+          opacity="0.48"
+        />
+
+        <!-- Lithograph / engraving hatching on shaded eastern flank -->
+        <g stroke="var(--text-muted)" stroke-width="0.7" opacity="0.28">
+          {hatchLines.map((h) => (
+            <line x1={h.x1} y1={h.y1} x2={h.x2} y2={h.y2} />
+          ))}
+        </g>
+      </g>
+
+      <!-- Layer 3: Main Grand Mountain Ridge & Ascent Spine -->
+      <g data-parallax="1.0">
+        <!-- Grand Organic Mountain Silhouette (Pen-drawn on load) -->
+        <path
+          d="M 40 620 C 165 565, 290 480, 415 415 C 540 350, 625 340, 735 268 C 815 215, 870 175, 920 152 C 985 188, 1085 288, 1185 415 C 1270 520, 1345 580, 1410 620"
+          fill="none"
+          stroke="var(--text-muted)"
+          stroke-width="1.35"
+          stroke-linecap="round"
+          class="animate-draw-ridge"
+          style="--ridge-length: 1850;"
+        />
+
+        <!-- Main Ascent Spine (Foot -> Summit) -->
+        <line
+          x1="130"
+          y1="620"
+          x2="920"
+          y2="152"
+          stroke="var(--border)"
+          stroke-width="1.25"
+          stroke-dasharray="4 5"
+        />
+
+        <!-- Climbed Solid Ink Trail behind the lone climber -->
+        <line
+          x1="130"
+          y1="620"
+          x2={climberX}
+          y2={climberY}
+          stroke="var(--text)"
+          stroke-width="2.4"
+          stroke-linecap="round"
+        />
+
+        <!-- Summit Flag & Elevation Readout -->
+        <g transform="translate(920, 152)">
+          <line x1="0" y1="0" x2="0" y2="-30" stroke="var(--text)" stroke-width="1.3" />
+          <polygon points="0,-30 19,-23 0,-16" fill="none" stroke="var(--text)" stroke-width="1.2" />
+          <text
+            x="26"
+            y="-19"
+            class="fill-[var(--text-muted)] font-mono text-[10px] tracking-[0.2em]"
+          >
+            SUMMIT · 100%
+          </text>
+        </g>
+
+        <!-- 408 Tree-Structured Ridge Fork (4 Courses: DS, CO, OS, CN) -->
+        <g>
+          <line
+            x1={node408TrunkStart.x}
+            y1={node408TrunkStart.y}
+            x2={node408Hub.x}
+            y2={node408Hub.y}
+            stroke="var(--text-muted)"
+            stroke-width="1.5"
+          />
+          <!-- 4 Sub-ridge paths -->
+          <path d={`M ${node408Hub.x} ${node408Hub.y} Q 320 395, 275 325`} fill="none" stroke="var(--border)" stroke-width="1.2" />
+          <path d={`M ${node408Hub.x} ${node408Hub.y} Q 382 372, 388 290`} fill="none" stroke="var(--border)" stroke-width="1.2" />
+          <path d={`M ${node408Hub.x} ${node408Hub.y} Q 452 380, 495 320`} fill="none" stroke="var(--border)" stroke-width="1.2" />
+          <path d={`M ${node408Hub.x} ${node408Hub.y} Q 480 412, 558 392`} fill="none" stroke="var(--border)" stroke-width="1.2" />
+
+          <!-- Active progress strokes -->
+          <line x1={node408Hub.x} y1={node408Hub.y} x2={branchDS.x} y2={branchDS.y} stroke="var(--text)" stroke-width="1.75" />
+          <line x1={node408Hub.x} y1={node408Hub.y} x2={branchCO.x} y2={branchCO.y} stroke="var(--text)" stroke-width="1.75" />
+          <line x1={node408Hub.x} y1={node408Hub.y} x2={branchOS.x} y2={branchOS.y} stroke="var(--text)" stroke-width="1.75" />
+          <line x1={node408Hub.x} y1={node408Hub.y} x2={branchCN.x} y2={branchCN.y} stroke="var(--text)" stroke-width="1.75" />
+
+          <!-- 408 Hub Anchor -->
+          <a href="/kb/408" class="group cursor-pointer">
+            <circle
+              cx={node408Hub.x}
+              cy={node408Hub.y}
+              r="14"
+              fill="var(--text)"
+              opacity="0"
+              class="transition-opacity group-hover:opacity-10"
+            />
+            <circle
+              cx={node408Hub.x}
+              cy={node408Hub.y}
+              r="6.5"
+              fill="var(--bg)"
+              stroke="var(--text)"
+              stroke-width="2"
+              class="transition-transform group-hover:scale-125"
+            />
+            <text
+              x={node408Hub.x + 14}
+              y={node408Hub.y + 5}
+              class="fill-[var(--text)] font-editorial text-[16px] font-semibold group-hover:underline"
+            >
+              408 · {stats408.percent}%
+            </text>
+          </a>
+
+          <!-- 4 Sub-branch Coordinate Nodes (Minimal by default, detailed on hover) -->
+          <a href="/kb/408#course-ds" class="group cursor-pointer">
+            <circle cx={branchDS.x} cy={branchDS.y} r="4.5" fill="var(--text)" class="transition-transform group-hover:scale-125" />
+            <text x="268" y="314" text-anchor="end" class="fill-[var(--text-muted)] font-sans text-[12px] transition-colors group-hover:fill-[var(--text)]">
+              数据结构 <tspan class="font-mono text-[10px] opacity-70">{courseStats408.ds.published}/{courseStats408.ds.total}</tspan>
+            </text>
+          </a>
+          <a href="/kb/408#course-co" class="group cursor-pointer">
+            <circle cx={branchCO.x} cy={branchCO.y} r="4.5" fill="var(--text)" class="transition-transform group-hover:scale-125" />
+            <text x="388" y="276" text-anchor="middle" class="fill-[var(--text-muted)] font-sans text-[12px] transition-colors group-hover:fill-[var(--text)]">
+              计组 <tspan class="font-mono text-[10px] opacity-70">{courseStats408.co.published}/{courseStats408.co.total}</tspan>
+            </text>
+          </a>
+          <a href="/kb/408#course-os" class="group cursor-pointer">
+            <circle cx={branchOS.x} cy={branchOS.y} r="4.5" fill="var(--text)" class="transition-transform group-hover:scale-125" />
+            <text x="504" y="314" text-anchor="start" class="fill-[var(--text-muted)] font-sans text-[12px] transition-colors group-hover:fill-[var(--text)]">
+              OS <tspan class="font-mono text-[10px] opacity-70">{courseStats408.os.published}/{courseStats408.os.total}</tspan>
+            </text>
+          </a>
+          <a href="/kb/408#course-cn" class="group cursor-pointer">
+            <circle cx={branchCN.x} cy={branchCN.y} r="4.5" fill="var(--text)" class="transition-transform group-hover:scale-125" />
+            <text x="568" y="395" text-anchor="start" class="fill-[var(--text-muted)] font-sans text-[12px] transition-colors group-hover:fill-[var(--text)]">
+              计网 <tspan class="font-mono text-[10px] opacity-70">{courseStats408.cn.published}/{courseStats408.cn.total}</tspan>
+            </text>
+          </a>
+        </g>
+
+        <!-- Math I Ridge Line & Coordinate Node -->
+        <g>
+          <line x1="575" y1="365" x2="1110" y2="228" stroke="var(--border)" stroke-width="1.25" />
+          <line x1="575" y1="365" x2={nodeMath1.x} y2={nodeMath1.y} stroke="var(--text)" stroke-width="1.9" />
+          <a href="/kb/math1" class="group cursor-pointer">
+            <circle
+              cx={nodeMath1.x}
+              cy={nodeMath1.y}
+              r="14"
+              fill="var(--text)"
+              opacity="0"
+              class="transition-opacity group-hover:opacity-10"
+            />
+            <circle
+              cx={nodeMath1.x}
+              cy={nodeMath1.y}
+              r="6.5"
+              fill="var(--bg)"
+              stroke="var(--text)"
+              stroke-width="2"
+              class="transition-transform group-hover:scale-125"
+            />
+            <text
+              x={nodeMath1.x + 14}
+              y={nodeMath1.y - 6}
+              class="fill-[var(--text)] font-editorial text-[16px] font-semibold group-hover:underline"
+            >
+              数学一 · {statsMath1.percent}%
+            </text>
+            <text
+              x={nodeMath1.x + 14}
+              y={nodeMath1.y + 11}
+              class="fill-[var(--text-muted)] font-mono text-[11px]"
+            >
+              高数 · 线代 · 概率论 ({statsMath1.published}/{statsMath1.total})
+            </text>
+          </a>
+        </g>
+
+        <!-- English I Ridge Line & Coordinate Node -->
+        <g>
+          <line x1="735" y1="468" x2="1295" y2="336" stroke="var(--border)" stroke-width="1.25" />
+          <line x1="735" y1="468" x2={nodeEnglish1.x} y2={nodeEnglish1.y} stroke="var(--text)" stroke-width="1.9" />
+          <a href="/kb/english1" class="group cursor-pointer">
+            <circle
+              cx={nodeEnglish1.x}
+              cy={nodeEnglish1.y}
+              r="14"
+              fill="var(--text)"
+              opacity="0"
+              class="transition-opacity group-hover:opacity-10"
+            />
+            <circle
+              cx={nodeEnglish1.x}
+              cy={nodeEnglish1.y}
+              r="6.5"
+              fill="var(--bg)"
+              stroke="var(--text)"
+              stroke-width="2"
+              class="transition-transform group-hover:scale-125"
+            />
+            <text
+              x={nodeEnglish1.x + 14}
+              y={nodeEnglish1.y - 6}
+              class="fill-[var(--text)] font-editorial text-[16px] font-semibold group-hover:underline"
+            >
+              英语一 · {statsEnglish1.percent}%
+            </text>
+            <text
+              x={nodeEnglish1.x + 14}
+              y={nodeEnglish1.y + 11}
+              class="fill-[var(--text-muted)] font-mono text-[11px]"
+            >
+              词句 · 阅读 · 翻译写作 ({statsEnglish1.published}/{statsEnglish1.total})
+            </text>
+          </a>
+        </g>
+
+        <!-- Lone Climber Ascending the Main Ridge -->
+        <g transform={`translate(${climberX}, ${climberY})`}>
+          <circle cx="0" cy="-12" r="18" fill="var(--text)" class="animate-climber-beacon" />
+          <circle cx="0" cy="-18" r="3.4" fill="var(--text)" />
+          <line x1="0" y1="-14.5" x2="-1.2" y2="-4.5" stroke="var(--text)" stroke-width="2" stroke-linecap="round" />
+          <line x1="-0.5" y1="-11.5" x2="5" y2="-9" stroke="var(--text)" stroke-width="1.5" stroke-linecap="round" />
+          <line x1="5" y1="-9" x2="6.8" y2="1.5" stroke="var(--text-muted)" stroke-width="1.1" stroke-linecap="round" />
+          <line x1="-1.2" y1="-4.5" x2="-5" y2="2" stroke="var(--text)" stroke-width="1.6" stroke-linecap="round" />
+          <line x1="-1.2" y1="-4.5" x2="3.2" y2="2" stroke="var(--text)" stroke-width="1.6" stroke-linecap="round" />
+          <text
+            x="-14"
+            y="-28"
+            text-anchor="end"
+            class="fill-[var(--text)] font-mono text-[11px] font-medium tracking-wider"
+          >
+            nanf · {overallStats.percent}%
+          </text>
+        </g>
       </g>
     </svg>
   </div>
+
+  <!-- Bottom Poster Corner Anchors (Colophon & Latest Dispatch Exhibition Plaque) -->
+  <div class="relative z-30 flex flex-col-reverse justify-between gap-4 px-5 pb-6 sm:px-8 sm:pb-8 md:flex-row md:items-end lg:px-12">
+    <!-- Bottom-Left: Quiet Exhibition Colophon -->
+    <div class="font-mono text-[11px] tracking-wider text-[var(--text-muted)]">
+      <span>{SITE.nickname} · 日常随笔与考研知识图谱</span>
+      <span class="mx-2 opacity-50">/</span>
+      <span class="opacity-75">Built with Astro Islands</span>
+    </div>
+
+    <!-- Bottom-Right: Translucent Latest Dispatch Exhibition Plaque -->
+    <a
+      href={latestPostSlug ? `/journal/${latestPostSlug}` : '/journal'}
+      class="group block w-full rounded-2xl border border-[var(--border)] bg-[var(--bg)]/75 p-4 backdrop-blur-md transition-all hover:border-[var(--text)] hover:bg-[var(--surface)]/90 md:w-80"
+    >
+      <div class="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
+        <span>Latest Dispatch</span>
+        {latestPostDate && <span>{latestPostDate}</span>}
+      </div>
+      <div class="mt-1.5 truncate font-editorial text-sm font-medium text-[var(--text)]">
+        {latestPostTitle ?? '日常随笔、图像与影音时间线'}
+      </div>
+      <div class="mt-2 flex items-center justify-between text-xs text-[var(--text-muted)]">
+        <span>日常共 {journalCount} 篇</span>
+        <span class="transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--text)]">
+          进入时间线 →
+        </span>
+      </div>
+    </a>
+  </div>
 </section>
+
+<script is:inline>
+  (() => {
+    const poster = document.getElementById('home-poster');
+    if (!poster) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const layers = Array.from(poster.querySelectorAll('[data-parallax]'));
+    if (!layers.length) return;
+
+    let rafId = 0;
+    let targetX = 0;
+    let targetY = 0;
+    let currentX = 0;
+    let currentY = 0;
+
+    const animate = () => {
+      currentX += (targetX - currentX) * 0.08;
+      currentY += (targetY - currentY) * 0.08;
+
+      for (const layer of layers) {
+        const depth = parseFloat(layer.getAttribute('data-parallax') || '0');
+        const tx = (currentX * depth * 12).toFixed(2);
+        const ty = (currentY * depth * 7).toFixed(2);
+        layer.setAttribute('transform', `translate(${tx}, ${ty})`);
+      }
+
+      if (Math.abs(targetX - currentX) > 0.002 || Math.abs(targetY - currentY) > 0.002) {
+        rafId = requestAnimationFrame(animate);
+      } else {
+        rafId = 0;
+      }
+    };
+
+    poster.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const rect = poster.getBoundingClientRect();
+      targetX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+      targetY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+      if (!rafId) rafId = requestAnimationFrame(animate);
+    });
+
+    poster.addEventListener('pointerleave', () => {
+      targetX = 0;
+      targetY = 0;
+      if (!rafId) rafId = requestAnimationFrame(animate);
+    });
+  })();
+</script>
