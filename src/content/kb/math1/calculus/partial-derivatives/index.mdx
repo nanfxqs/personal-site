@@ -1,0 +1,44 @@
+---
+title: "偏导数、全微分、切平面与梯度方向导数"
+summary: "从三维曲面的局部线性逼近理解全微分与切平面，并通过梯度与 Hessian 矩阵衔接线性代数二次型。"
+subject: "math1"
+course: "calculus"
+chapter: "多元函数微分学"
+section: "偏导数、梯度与极值"
+status: "学习中"
+updatedAt: 2026-11-22
+tags: ["数学一", "多元微积分", "3D几何直觉"]
+related:
+  - "math1/linalg/quadratic-forms"
+  - "math1/calculus/multivariable-extrema"
+sources:
+  - title: "同济大学《高等数学》第 9 章"
+  - title: "3Blue1Brown《微积分的本质》"
+    url: "https://www.3blue1brown.com/"
+vizKind: "3d"
+---
+
+import TopicLink from '@/components/kb/TopicLink.astro';
+import Surface3D from './_Surface3D.tsx';
+
+## 几何直觉与全微分
+
+对于二元函数 $z = f(x, y)$，在点 $(x_0, y_0)$ 处可微等价于曲面在该点存在**非铅直切平面**：
+
+$$
+z - f(x_0, y_0) = f_x(x_0, y_0)(x - x_0) + f_y(x_0, y_0)(y - y_0)
+$$
+
+其梯度向量 $\nabla f = (f_x, f_y)$ 指向函数值增长最快的方向，沿任意单位向量 $\mathbf{l} = (\cos\alpha, \cos\beta)$ 的方向导数为：
+
+$$
+\frac{\partial f}{\partial l} = \nabla f \cdot \mathbf{l} = |\nabla f| \cos\theta
+$$
+
+## 3D 曲面交互观察（鞍点示例）
+
+对于双曲抛物面 $z = a(x^2 - y^2)$，原点 $(0, 0)$ 处满足 $f_x = 0, f_y = 0$，但二阶导构成的 Hessian 矩阵是不定矩阵（与线性代数中的 <TopicLink id="math1/linalg/quadratic-forms" /> 直接呼应），因此原点为**鞍点**而非极值点：
+
+<Surface3D client:only="react" />
+
+后续在 <TopicLink id="math1/calculus/multivariable-extrema" /> 中，我们将进一步结合二阶偏导判别式 $AC - B^2$ 与二次型正定性给出统一判定框架。

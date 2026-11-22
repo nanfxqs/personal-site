@@ -1,0 +1,45 @@
+---
+title: "KMP 算法与 next / nextval 数组"
+summary: "利用已匹配前缀的最长相等前后缀信息，避免主串指针回溯，将串模式匹配时间复杂度从 O(nm) 降至 O(n+m)。"
+subject: "408"
+course: "ds"
+chapter: "串"
+section: "模式匹配算法"
+status: "学习中"
+updatedAt: 2026-11-22
+tags: ["408", "字符串", "双指针"]
+prerequisites:
+  - "408/ds/complexity-analysis"
+related:
+  - "408/ds/sequential-list"
+sources:
+  - title: "Hello 算法"
+    url: "https://www.hello-algo.com/"
+    note: "算法动画与分步表达参考"
+  - title: "严蔚敏《数据结构（C语言版）》第 4 章"
+    note: "408 经典教材定义与 next 数组推导"
+vizKind: "2d"
+---
+
+import TopicLink from '@/components/kb/TopicLink.astro';
+import KmpDemo from './_KmpDemo.tsx';
+
+## 核心直觉
+
+在朴素模式匹配中，一旦主串 $T$ 与模式串 $P$ 在某一位失配，主串指针 $i$ 必须退回到本次匹配起点的下一位，导致最坏时间复杂度达到 $O(n \cdot m)$（相关渐进分析见 <TopicLink id="408/ds/complexity-analysis" />）。
+
+**KMP 算法**的核心洞察是：**失配前已经匹配成功的那一段前缀本身包含了重复结构信息**。利用模式串自身的**最长相等真前后缀**长度表（即 `next` 数组），失配时只需将模式串指针 $j$ 跳转到 `next[j]`，而主串指针 $i$ **永不回溯**。
+
+## 分步交互演示
+
+<KmpDemo client:visible />
+
+## 复杂度与 `nextval` 优化
+
+设主串长度为 $n$，模式串长度为 $m$：
+
+- **构建 `next` 数组**：$O(m)$
+- **模式匹配过程**：$O(n)$
+- **总时间复杂度**：$T(n, m) = O(n + m)$，空间复杂度 $O(m)$。
+
+当 $P[j] = P[\text{next}[j]]$ 时，按 `next[j]` 回退后必然再次失配；将其直接指向更早的 `nextval[next[j]]` 即可消除连续无效比较，这也是 408 选择题手算 `next` 与 `nextval` 的高频考点。
