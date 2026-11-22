@@ -2,6 +2,8 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import StudyStatusBadge from '@/components/kb/StudyStatusBadge.astro';
 import CircularProgress from '@/components/kb/CircularProgress.astro';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { SUBJECT_LIST, SYLLABI, type SubjectId } from '@/data/syllabus';
 import { getKnowledgeIndex } from '@/lib/kb-graph';
 
@@ -27,22 +29,22 @@ const subjectDisplayPercent =
 ---
 
 <BaseLayout title={subject.title} description={subject.description}>
-  <header class="border-b border-[var(--border)] py-12">
+  <header class="border-b border-border/80 py-12">
     <div class="flex flex-wrap items-center justify-between gap-6">
       <div>
-        <div class="text-xs font-mono uppercase tracking-wider text-[var(--text-muted)]">
-          Subject · {subject.code}
-        </div>
-        <h1 class="mt-2 font-editorial text-3xl font-semibold text-[var(--text)] sm:text-4xl">
+        <h1 class="font-editorial text-3xl font-semibold text-foreground sm:text-4xl">
           {subject.title}
         </h1>
-        <p class="mt-2 max-w-2xl font-editorial text-sm leading-relaxed text-[var(--text-muted)]">
+        <p class="mt-2.5 max-w-2xl font-editorial text-sm leading-relaxed text-muted-foreground">
           {subject.description}
         </p>
       </div>
 
-      <!-- Dynamic Monochrome Circular Progress for Subject -->
-      <div class="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3.5">
+      <!-- Dynamic Morning Frost Circular Progress for Subject -->
+      <div
+        data-spotlight
+        class="glass-surface spotlight-card flex items-center gap-4 rounded-2xl px-5 py-3.5 text-card-foreground"
+      >
         <CircularProgress
           percent={subjectDisplayPercent}
           secondaryPercent={subjectWrittenPercent}
@@ -51,16 +53,14 @@ const subjectDisplayPercent =
           idPrefix={`subject-${subject.id}`}
           title={`${subject.title} · 学习进度 ${subjectDisplayPercent}% · 已写入 ${stats.published}/${stats.total} · 已掌握 ${stats.mastered} · 学习中 ${stats.inProgress}`}
         />
-        <div class="space-y-1 text-xs">
-          <div class="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
-            {subject.code} Progress
-          </div>
-          <div class="flex items-center gap-1.5 text-[var(--text)]">
-            <span class="h-1.5 w-1.5 rounded-full bg-[var(--text)]"></span>
+        <div class="space-y-1.5 text-xs tabular-nums">
+          <div class="font-medium text-foreground">学习状态</div>
+          <div class="flex items-center gap-1.5 text-foreground">
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
             <span>已掌握 {stats.mastered}</span>
           </div>
-          <div class="flex items-center gap-1.5 text-[var(--text-muted)]">
-            <span class="h-1.5 w-1.5 rounded-full border border-[var(--text-muted)]"></span>
+          <div class="flex items-center gap-1.5 text-muted-foreground">
+            <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
             <span>学习中 {stats.inProgress}</span>
           </div>
         </div>
@@ -73,9 +73,13 @@ const subjectDisplayPercent =
         subject.courses.map((course) => (
           <a
             href={`#course-${course.id}`}
-            class="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--text)] hover:border-[var(--text)] transition-colors"
+            class={cn(
+              buttonVariants({ variant: 'outline', size: 'sm' }),
+              'h-8 rounded-full px-3.5',
+            )}
           >
-            {course.title} · {course.scoreShare}
+            <span>{course.title}</span>
+            <span class="text-muted-foreground">· {course.scoreShare}</span>
           </a>
         ))
       }
@@ -184,12 +188,12 @@ const subjectDisplayPercent =
                   data-linked-list-bar
                   class="horizontal-fade-mask no-scrollbar relative flex items-center overflow-x-auto px-10 py-4 select-none cursor-grab"
                 >
-                  {/* Sliding monochrome pill indicator behind the active chapter node */}
+                  {/* Sliding frost-primary pill indicator behind the active chapter node */}
                   <div
                     data-active-indicator
                     aria-hidden="true"
-                    class="pointer-events-none absolute left-0 top-1/2 z-0 rounded-full bg-[var(--text)] opacity-0 shadow-sm"
-                    style="transform: translate3d(0, -50%, 0); transition: transform 340ms cubic-bezier(0.22, 1, 0.36, 1), width 340ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease;"
+                    class="pointer-events-none absolute left-0 top-1/2 z-0 rounded-full bg-primary opacity-0 shadow-[0_6px_18px_-6px_rgba(2,132,199,0.55)]"
+                    style="transform: translate3d(0, -50%, 0); transition: transform 300ms var(--ease-out), width 300ms var(--ease-out), opacity 180ms ease;"
                   />
 
                   {chaptersWithCounts.map(({ chapter, publishedCount, totalCount }, chIdx) => {
@@ -211,24 +215,24 @@ const subjectDisplayPercent =
                           data-active={isFirst ? 'true' : 'false'}
                           aria-pressed={isFirst ? 'true' : 'false'}
                           class:list={[
-                            'group flex items-center gap-2.5 rounded-full border px-3.5 py-2 text-xs transition-colors duration-300 ease-out cursor-pointer',
+                            'chapter-node group flex items-center gap-2.5 rounded-full border px-3.5 py-2 text-xs cursor-pointer',
                             isFirst
-                              ? 'border-[var(--text)] bg-[var(--text)] text-[var(--bg)] shadow-xs'
-                              : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--text)]',
+                              ? 'border-primary bg-primary text-primary-foreground shadow-xs'
+                              : 'border-border bg-card/80 text-foreground backdrop-blur-sm hover:border-[var(--specular-border)]',
                           ]}
                         >
                           {/* Linked-list node: solid = recorded, hollow = unrecorded */}
                           <span
                             title={hasNotes ? `已记入 ${publishedCount} 篇` : '暂未记入'}
                             class:list={[
-                              'inline-block h-2.5 w-2.5 shrink-0 rounded-full border-[1.5px] transition-colors duration-300',
+                              'chapter-node-dot inline-block h-2.5 w-2.5 shrink-0 rounded-full border-[1.5px]',
                               hasNotes
                                 ? isFirst
-                                  ? 'border-[var(--bg)] bg-[var(--bg)]'
-                                  : 'border-[var(--text)] bg-[var(--text)]'
+                                  ? 'border-primary-foreground bg-primary-foreground'
+                                  : 'border-primary bg-primary'
                                 : isFirst
-                                  ? 'border-[var(--bg)] bg-transparent'
-                                  : 'border-[var(--text-muted)] bg-transparent',
+                                  ? 'border-primary-foreground bg-transparent'
+                                  : 'border-muted-foreground bg-transparent',
                             ]}
                           />
                           <span class="font-mono text-[11px] opacity-75">
@@ -262,8 +266,9 @@ const subjectDisplayPercent =
                     data-chapter-panel={chapter.id}
                     data-chapter-index={chIdx}
                     data-course-id={course.id}
+                    data-spotlight
                     class:list={[
-                      'rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6',
+                      'glass-surface spotlight-card rounded-2xl p-6 text-card-foreground',
                       chIdx === 0 ? 'block' : 'hidden',
                     ]}
                   >
@@ -345,18 +350,18 @@ const subjectDisplayPercent =
               {chaptersWithCounts.map(({ chapter, publishedCount, totalCount }, chIdx) => {
                 const hasNotes = publishedCount > 0;
                 return (
-                  <details open={chIdx === 0 || hasNotes} class="group relative">
+                  <details open={chIdx === 0 || hasNotes} class="chapter-disclosure group relative">
                     {/* Vertical linked-list node */}
                     <span
                       class:list={[
-                        'absolute -left-[25px] top-3.5 h-2.5 w-2.5 rounded-full border-[1.5px]',
+                        'chapter-node-dot absolute -left-[25px] top-3.5 h-2.5 w-2.5 rounded-full border-[1.5px]',
                         hasNotes
                           ? 'border-[var(--text)] bg-[var(--text)]'
                           : 'border-[var(--text-muted)] bg-[var(--bg)]',
                       ]}
                     />
 
-                    <summary class="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+                    <summary class="chapter-node flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
                       <div class="min-w-0">
                         <div class="flex items-center gap-2">
                           <span class="font-mono text-[11px] text-[var(--text-muted)]">
@@ -372,8 +377,9 @@ const subjectDisplayPercent =
                           </div>
                         )}
                       </div>
-                      <span class="shrink-0 font-mono text-[11px] text-[var(--text-muted)]">
-                        {publishedCount}/{totalCount} ▾
+                      <span class="flex shrink-0 items-center gap-1.5 font-mono text-[11px] text-[var(--text-muted)]">
+                        {publishedCount}/{totalCount}
+                        <span aria-hidden="true" class="chapter-chevron inline-block">▸</span>
                       </span>
                     </summary>
 
@@ -426,6 +432,47 @@ const subjectDisplayPercent =
     }
   </div>
 </BaseLayout>
+
+<style>
+  .chapter-node:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .chapter-disclosure[open] .chapter-chevron {
+    transform: rotate(90deg);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .chapter-node:hover {
+      border-color: var(--primary);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .chapter-node {
+      transition: transform 150ms var(--ease-out), border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+    }
+
+    .chapter-node-dot, .chapter-chevron {
+      transition: transform 150ms var(--ease-out), background-color 150ms ease, border-color 150ms ease;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .chapter-node:not([data-active="true"]):hover { transform: translateY(-2px); }
+      .chapter-node:hover .chapter-node-dot,
+      .chapter-disclosure:has(> summary:hover) > .chapter-node-dot {
+        transform: scale(1.25);
+      }
+    }
+
+    .chapter-node:active { transform: translateY(1px); }
+    .chapter-node:active .chapter-node-dot,
+    .chapter-disclosure:has(> summary:active) > .chapter-node-dot {
+      transform: scale(0.85);
+    }
+  }
+</style>
 
 <script is:inline>
   (() => {
@@ -524,23 +571,23 @@ const subjectDisplayPercent =
           // When the sliding indicator pill is active, make active button background transparent so the gliding pill shows through
           tab.classList.toggle('border-transparent', active && usePillBackdrop);
           tab.classList.toggle('bg-transparent', active && usePillBackdrop);
-          tab.classList.toggle('border-[var(--text)]', active && !usePillBackdrop);
-          tab.classList.toggle('bg-[var(--text)]', active && !usePillBackdrop);
-          tab.classList.toggle('text-[var(--bg)]', active);
+          tab.classList.toggle('border-primary', active && !usePillBackdrop);
+          tab.classList.toggle('bg-primary', active && !usePillBackdrop);
+          tab.classList.toggle('text-primary-foreground', active);
           tab.classList.toggle('shadow-xs', active && !usePillBackdrop);
 
-          tab.classList.toggle('border-[var(--border)]', !active);
-          tab.classList.toggle('bg-[var(--surface)]', !active);
-          tab.classList.toggle('text-[var(--text)]', !active);
+          tab.classList.toggle('border-border', !active);
+          tab.classList.toggle('bg-card/80', !active);
+          tab.classList.toggle('text-foreground', !active);
 
           const dot = tab.querySelector('span[title]');
           if (dot) {
             const hasNotes = !dot.getAttribute('title')?.includes('暂未记入');
-            dot.classList.toggle('border-[var(--bg)]', active);
-            dot.classList.toggle('bg-[var(--bg)]', active && hasNotes);
-            dot.classList.toggle('border-[var(--text)]', !active && hasNotes);
-            dot.classList.toggle('bg-[var(--text)]', !active && hasNotes);
-            dot.classList.toggle('border-[var(--text-muted)]', !active && !hasNotes);
+            dot.classList.toggle('border-primary-foreground', active);
+            dot.classList.toggle('bg-primary-foreground', active && hasNotes);
+            dot.classList.toggle('border-primary', !active && hasNotes);
+            dot.classList.toggle('bg-primary', !active && hasNotes);
+            dot.classList.toggle('border-muted-foreground', !active && !hasNotes);
           }
         });
       }

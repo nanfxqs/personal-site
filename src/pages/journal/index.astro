@@ -21,7 +21,7 @@ const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
           个人日常与随笔
         </h1>
         <p class="mt-2 text-sm text-[var(--text-muted)]">
-          竖向可拖拽渐隐时间线 · 记录生活片段、随笔感慨、图像与影音。共 {posts.length} 篇。
+          记录生活片段、随笔感慨、图像与影音。共 {posts.length} 篇。
         </p>
       </div>
       <span class="hidden text-xs font-mono text-[var(--text-muted)] sm:inline">
@@ -30,13 +30,13 @@ const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
     </div>
   </header>
 
-  <!-- Vertical Draggable & Fading Timeline -->
+  <!-- Vertical Draggable & Fading Timeline (natural page scroll on mobile, fading viewport on md+) -->
   <section class="py-8">
     <div
       id="vertical-timeline-viewport"
-      class="timeline-fade-mask no-scrollbar relative max-h-[72vh] overflow-y-auto px-2 py-10 select-none sm:cursor-grab"
+      class="no-scrollbar relative px-1 py-4 sm:px-2 md:timeline-fade-mask md:max-h-[72vh] md:overflow-y-auto md:py-10 md:select-none md:cursor-grab"
     >
-      <div class="relative mx-auto max-w-3xl border-l border-[var(--border)] pl-7 sm:pl-10">
+      <div class="relative mx-auto max-w-3xl border-l border-border pl-7 sm:pl-10">
         {
           posts.map((post) => {
             const slug = normalizeJournalSlug(post.id);
@@ -48,41 +48,36 @@ const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
             return (
               <article
                 data-timeline-item
-                class="relative pb-12 last:pb-2 transition-opacity duration-200"
+                class="relative"
               >
-                {/* Timeline node */}
-                <span class="absolute -left-[33px] top-1.5 flex h-3 w-3 items-center justify-center rounded-full border border-[var(--text)] bg-[var(--bg)] sm:-left-[45px]">
-                  <span class="h-1.5 w-1.5 rounded-full bg-[var(--text)]" />
-                </span>
-
                 <a
                   href={`/journal/${slug}`}
-                  class="group block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 transition-colors hover:border-[var(--text)]"
+                  draggable="false"
+                  class="journal-entry relative block rounded-sm py-5 pr-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:py-6"
                 >
-                  <div class="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
-                    <span class="font-mono font-medium text-[var(--text)]">
-                      {dateTimeAttr ? <time datetime={dateTimeAttr}>{dateStr}</time> : dateStr}
-                    </span>
-                    {post.data.mood && <span>· {post.data.mood}</span>}
-                    {post.data.media.length > 0 && (
-                      <span class="rounded-full border border-[var(--border)] px-2 py-0.5 text-[11px]">
-                        含 {post.data.media.length} 个媒体附件
+                  <span aria-hidden="true" class="journal-node absolute -left-7 top-[1.75rem] size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary bg-background sm:-left-10 sm:top-[2rem]" />
+                  <div class="journal-copy">
+                    <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span class="tabular-nums tracking-wide">
+                        {dateTimeAttr ? <time datetime={dateTimeAttr}>{dateStr}</time> : dateStr}
                       </span>
+                      {post.data.mood && <span>{post.data.mood}</span>}
+                      {post.data.media.length > 0 && <span>含 {post.data.media.length} 个媒体附件</span>}
+                      {post.data.tags.map((tag) => (
+                        <span class="text-[11px] text-muted-foreground">#{tag}</span>
+                      ))}
+                    </div>
+
+                    <h2 class="journal-title mt-1.5 font-editorial text-xl font-semibold text-foreground sm:text-2xl">
+                      {post.data.title}
+                    </h2>
+
+                    {post.data.summary && (
+                      <p class="mt-2 font-editorial text-sm leading-relaxed text-muted-foreground">
+                        {post.data.summary}
+                      </p>
                     )}
-                    {post.data.tags.map((tag) => (
-                      <span class="text-[11px] text-[var(--text-muted)]">#{tag}</span>
-                    ))}
                   </div>
-
-                  <h2 class="mt-2.5 font-editorial text-2xl font-semibold text-[var(--text)] group-hover:underline decoration-[var(--border)] underline-offset-4">
-                    {post.data.title}
-                  </h2>
-
-                  {post.data.summary && (
-                    <p class="mt-2 font-editorial text-sm leading-relaxed text-[var(--text-muted)]">
-                      {post.data.summary}
-                    </p>
-                  )}
                 </a>
               </article>
             );
@@ -92,6 +87,44 @@ const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
     </div>
   </section>
 </BaseLayout>
+
+<style>
+  .journal-title {
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.28em;
+  }
+
+  .journal-entry:focus-visible .journal-title {
+    text-decoration-color: var(--primary);
+  }
+
+  .journal-entry:focus-visible .journal-node {
+    background-color: var(--primary);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .journal-entry:hover .journal-title { text-decoration-color: var(--primary); }
+    .journal-entry:hover .journal-node { background-color: var(--primary); }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .journal-copy, .journal-node {
+      transition: transform 150ms var(--ease-out), background-color 150ms ease;
+    }
+
+    .journal-title { transition: text-decoration-color 150ms ease; }
+
+    @media (hover: hover) and (pointer: fine) {
+      .journal-entry:hover .journal-copy { transform: translateX(4px); }
+      .journal-entry:hover .journal-node { transform: scale(1.3); }
+    }
+
+    .journal-entry:active .journal-copy { transform: translateX(1px); }
+    .journal-entry:active .journal-node { transform: scale(0.85); }
+  }
+</style>
 
 <script is:inline>
   (() => {
@@ -104,7 +137,7 @@ const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
     let dragged = false;
 
     viewport.addEventListener('mousedown', (e) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || viewport.scrollHeight <= viewport.clientHeight) return;
       isDown = true;
       dragged = false;
       startY = e.pageY - viewport.offsetTop;
@@ -121,7 +154,8 @@ const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
       if (!isDown) return;
       const y = e.pageY - viewport.offsetTop;
       const walk = y - startY;
-      if (Math.abs(walk) > 6) dragged = true;
+      if (!dragged && Math.abs(walk) <= 6) return;
+      dragged = true;
       viewport.scrollTop = scrollTop - walk;
     });
 
@@ -129,7 +163,7 @@ const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
     viewport.addEventListener(
       'click',
       (e) => {
-        if (dragged) {
+        if (dragged && e.detail > 0) {
           e.preventDefault();
           dragged = false;
         }

@@ -1,6 +1,9 @@
 ---
 import { SYLLABI, type SubjectId } from '@/data/syllabus';
 import { getKnowledgeIndex } from '@/lib/kb-graph';
+import { buttonVariants } from '@/components/ui/button';
+import { badgeVariants } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import StudyStatusBadge from './StudyStatusBadge.astro';
 
 interface Props {
@@ -21,9 +24,9 @@ const index = await getKnowledgeIndex();
   <div>
     <a
       href={`/kb/${subject.id}`}
-      class="text-xs font-medium tracking-wider uppercase text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+      class="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors"
     >
-      {subject.title}
+      <span>{subject.title}</span>
     </a>
   </div>
 
@@ -37,12 +40,10 @@ const index = await getKnowledgeIndex();
         return (
           <a
             href={href}
-            class:list={[
-              'rounded-lg border px-2.5 py-1 text-xs transition-colors',
-              isCurrent
-                ? 'border-[var(--accent)] bg-[var(--accent-soft)]/60 font-medium text-[var(--accent)]'
-                : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]',
-            ]}
+            class={cn(
+              buttonVariants({ variant: isCurrent ? 'default' : 'outline', size: 'xs' }),
+              'h-7 rounded-lg px-2.5 text-[11px]',
+            )}
           >
             {course.shortTitle}
           </a>
@@ -52,7 +53,7 @@ const index = await getKnowledgeIndex();
   </div>
 
   <!-- Chapter -> Section -> Topic tree -->
-  <nav aria-label="章节目录" class="space-y-4">
+  <nav aria-label="章节目录" class="space-y-3.5">
     {
       activeCourse.chapters.map((chapter) => {
         const containsActive = chapter.sections.some((sec) =>
@@ -60,22 +61,22 @@ const index = await getKnowledgeIndex();
         );
         return (
           <details open={containsActive || chapter.order <= 2} class="group">
-            <summary class="flex cursor-pointer list-none items-center justify-between gap-2 py-1 text-xs font-semibold tracking-wide text-[var(--text)] hover:text-[var(--accent)]">
-              <span>
-                <span class="mr-1.5 font-mono text-[var(--text-muted)]">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-1.5 py-1.5 text-xs font-semibold tracking-wide text-foreground hover:bg-accent/70 transition-colors">
+              <span class="truncate">
+                <span class="mr-1.5 font-mono text-[11px] text-muted-foreground">
                   {String(chapter.order).padStart(2, '0')}
                 </span>
                 {chapter.title}
               </span>
-              <span class="text-[10px] text-[var(--text-muted)] transition-transform group-open:rotate-90">
+              <span class="text-[10px] text-muted-foreground transition-transform duration-200 group-open:rotate-90">
                 ▸
               </span>
             </summary>
 
-            <div class="mt-1.5 space-y-2.5 border-l border-[var(--border)] pl-3">
+            <div class="mt-1.5 ml-2 space-y-2.5 border-l border-border pl-3">
               {chapter.sections.map((section) => (
                 <div>
-                  <div class="mb-1 text-[11px] font-medium text-[var(--text-muted)]">
+                  <div class="mb-1 px-1 text-[11px] font-medium text-muted-foreground">
                     {section.title}
                   </div>
                   <ul class="space-y-0.5">
@@ -88,19 +89,24 @@ const index = await getKnowledgeIndex();
                         <li>
                           <a
                             href={`/kb/${stub.id}`}
-                            class:list={[
+                            class={cn(
                               'flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs leading-snug transition-colors',
                               isCurrent
-                                ? 'bg-[var(--surface-subtle)] font-medium text-[var(--accent)]'
+                                ? 'bg-secondary font-medium text-foreground shadow-2xs'
                                 : isPublished
-                                  ? 'text-[var(--text)] hover:bg-[var(--surface-subtle)]'
-                                  : 'text-[var(--text-muted)]/80 hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]',
-                            ]}
+                                  ? 'text-foreground hover:bg-accent/70'
+                                  : 'text-muted-foreground/85 hover:bg-accent/60 hover:text-foreground',
+                            )}
                           >
                             <StudyStatusBadge status={status} compact />
                             <span class="flex-1 truncate">{resolved?.title ?? stub.title}</span>
                             {stub.viz && (
-                              <span class="shrink-0 rounded bg-[var(--surface-subtle)] px-1 py-0.5 text-[9px] font-mono uppercase text-[var(--text-muted)]">
+                              <span
+                                class={cn(
+                                  badgeVariants({ variant: 'muted' }),
+                                  'shrink-0 rounded-md px-1.5 py-0 font-mono text-[9px] uppercase',
+                                )}
+                              >
                                 {stub.viz}
                               </span>
                             )}

@@ -2,6 +2,8 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import StudyStatusBadge from '@/components/kb/StudyStatusBadge.astro';
 import CircularProgress from '@/components/kb/CircularProgress.astro';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { SUBJECT_LIST, SYLLABI, type SubjectId } from '@/data/syllabus';
 import { getKnowledgeIndex } from '@/lib/kb-graph';
 
@@ -61,27 +63,24 @@ const startLabel = firstPublishedStub ? '继续学习' : '开始学习';
 
     <div class="mt-5 flex flex-wrap items-center justify-between gap-6">
       <div>
-        <div class="text-xs font-mono uppercase tracking-wider text-[var(--text-muted)]">
-          Course · {subject.code} · {course.scoreShare}
-        </div>
-        <h1 class="mt-2 font-editorial text-3xl font-semibold text-[var(--text)] sm:text-4xl">
+        <h1 class="font-editorial text-3xl font-semibold text-foreground sm:text-4xl">
           {course.title}
         </h1>
-        <p class="mt-2 max-w-2xl font-editorial text-sm leading-relaxed text-[var(--text-muted)]">
-          {course.description}
+        <p class="mt-2 max-w-2xl font-editorial text-sm leading-relaxed text-muted-foreground">
+          {course.scoreShare} · {course.description}
         </p>
 
         <div class="mt-5 flex flex-wrap items-center gap-2.5">
           <a
             href={startHref}
-            class="inline-flex items-center gap-2 rounded-full border border-[var(--text)] bg-[var(--text)] px-4 py-1.5 text-xs font-medium text-[var(--bg)] transition-opacity hover:opacity-85"
+            class={cn(buttonVariants({ variant: 'default', size: 'sm' }), 'rounded-full px-4')}
           >
             <span>{startLabel}</span>
             <span aria-hidden="true">→</span>
           </a>
           <a
             href={`/kb/${subject.id}`}
-            class="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--text)] hover:text-[var(--text)]"
+            class={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'rounded-full px-3.5')}
           >
             <span>返回学科总览</span>
           </a>
@@ -89,7 +88,7 @@ const startLabel = firstPublishedStub ? '继续学习' : '开始学习';
       </div>
 
       <!-- Dynamic Monochrome Circular Progress for Course -->
-      <div class="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3.5">
+      <div class="flex items-center gap-4 rounded-2xl border border-border bg-card px-5 py-3.5 text-card-foreground shadow-xs">
         <CircularProgress
           percent={displayPercent}
           secondaryPercent={writtenPercent}
@@ -98,16 +97,16 @@ const startLabel = firstPublishedStub ? '继续学习' : '开始学习';
           idPrefix={`course-${subject.id}-${course.id}`}
           title={`${course.title} · 学习进度 ${displayPercent}% · 已写入 ${cStats.published}/${cStats.total} · 已掌握 ${cStats.mastered} · 学习中 ${cStats.inProgress}`}
         />
-        <div class="space-y-1 text-xs">
-          <div class="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
+        <div class="space-y-1.5 text-xs">
+          <div class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
             {course.chapters.length} Chapters
           </div>
-          <div class="flex items-center gap-1.5 text-[var(--text)]">
-            <span class="h-1.5 w-1.5 rounded-full bg-[var(--text)]"></span>
+          <div class="flex items-center gap-1.5 text-foreground">
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
             <span>已掌握 {cStats.mastered}</span>
           </div>
-          <div class="flex items-center gap-1.5 text-[var(--text-muted)]">
-            <span class="h-1.5 w-1.5 rounded-full border border-[var(--text-muted)]"></span>
+          <div class="flex items-center gap-1.5 text-muted-foreground">
+            <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
             <span>学习中 {cStats.inProgress}</span>
           </div>
         </div>
@@ -122,14 +121,15 @@ const startLabel = firstPublishedStub ? '继续学习' : '开始学习';
           return (
             <a
               href={`/kb/${subject.id}/${sibling.id}`}
-              class:list={[
-                'rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors',
-                isCurrent
-                  ? 'border-[var(--text)] bg-[var(--text)] text-[var(--bg)]'
-                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--text)] hover:text-[var(--text)]',
-              ]}
+              class={cn(
+                buttonVariants({ variant: isCurrent ? 'default' : 'outline', size: 'sm' }),
+                'h-8 rounded-full px-3.5',
+              )}
             >
-              {sibling.title} · {sibling.scoreShare}
+              <span>{sibling.title}</span>
+              <span class={isCurrent ? 'opacity-75' : 'text-muted-foreground'}>
+                · {sibling.scoreShare}
+              </span>
             </a>
           );
         })
@@ -149,7 +149,10 @@ const startLabel = firstPublishedStub ? '继续学习' : '开始学习';
           topicIds.length > 0 ? Math.round((publishedCount / topicIds.length) * 100) : 0;
 
         return (
-          <article class="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+          <article
+            data-spotlight
+            class="glass-surface spotlight-card rounded-2xl p-6 text-card-foreground"
+          >
             <div class="flex flex-wrap items-baseline justify-between gap-2 pb-3">
               <div class="flex flex-wrap items-baseline gap-2.5">
                 <span class="font-mono text-xs text-[var(--text-muted)]">

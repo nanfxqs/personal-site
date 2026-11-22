@@ -5,13 +5,14 @@
   type="button"
   aria-label="阅读进度（可拖拽移动，点击返回顶部）"
   title="可拖拽移动位置 · 点击返回顶部"
-  class="fixed right-6 bottom-6 z-40 flex h-14 w-14 touch-none select-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/95 shadow-lg backdrop-blur-md transition-shadow hover:border-[var(--text)] hover:shadow-xl cursor-grab active:cursor-grabbing"
+  class="glass-surface-strong fixed right-6 bottom-6 z-40 flex h-14 w-14 touch-none select-none items-center justify-center rounded-full transition-[border-color,box-shadow] duration-200 hover:border-[var(--specular-border)] cursor-grab active:cursor-grabbing"
 >
   <svg class="h-14 w-14 -rotate-90 pointer-events-none" viewBox="0 0 56 56" aria-hidden="true">
     <defs>
       <linearGradient id="mono-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="var(--text-muted)" />
-        <stop offset="100%" stop-color="var(--text)" />
+        <stop offset="0%" stop-color="#7dd3fc" />
+        <stop offset="55%" stop-color="var(--subject-408)" />
+        <stop offset="100%" stop-color="var(--subject-math1)" />
       </linearGradient>
     </defs>
     <circle

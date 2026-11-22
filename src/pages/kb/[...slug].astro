@@ -2,6 +2,8 @@
 import { render } from 'astro:content';
 import KbLayout from '@/layouts/KbLayout.astro';
 import StudyStatusBadge from '@/components/kb/StudyStatusBadge.astro';
+import { badgeVariants } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { getKnowledgeIndex } from '@/lib/kb-graph';
 
 export async function getStaticPaths() {
@@ -54,22 +56,22 @@ const updatedAt = topic.entry?.data.updatedAt;
     <div class="mt-4 flex flex-wrap items-center gap-2 text-xs">
       <StudyStatusBadge status={topic.status} />
       {topic.weight && (
-        <span class="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2.5 py-0.5 text-amber-600 dark:text-amber-400">
+        <span class={badgeVariants({ variant: 'warning' })}>
           考频 {topic.weight}
         </span>
       )}
       {topic.textbookRef && (
-        <span class="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2.5 py-0.5 text-[var(--text-muted)]">
+        <span class={badgeVariants({ variant: 'outline' })}>
           教材：{topic.textbookRef}
         </span>
       )}
       {updatedAt && (
-        <span class="font-mono text-[var(--text-muted)]">
+        <span class={cn(badgeVariants({ variant: 'muted' }), 'font-mono')}>
           更新于 {updatedAt.toISOString().slice(0, 10)}
         </span>
       )}
       {tags.map((tag) => (
-        <span class="rounded-full bg-[var(--surface-subtle)] px-2 py-0.5 text-[var(--text-muted)]">
+        <span class={badgeVariants({ variant: 'secondary' })}>
           #{tag}
         </span>
       ))}
@@ -83,24 +85,26 @@ const updatedAt = topic.entry?.data.updatedAt;
         <Content />
       </div>
     ) : (
-      <section class="mt-8 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center">
-        <div class="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-subtle)] font-editorial text-lg text-[var(--text-muted)]">
+      <section class="mt-8 rounded-2xl border border-dashed border-border bg-card p-8 text-center text-card-foreground shadow-xs">
+        <div class="mx-auto inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-muted font-editorial text-lg text-muted-foreground">
           §
         </div>
-        <h2 class="mt-4 font-editorial text-xl font-semibold text-[var(--text)]">
+        <h2 class="mt-4 font-editorial text-xl font-semibold text-foreground">
           待学占位节点 (Stub Topic)
         </h2>
-        <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[var(--text-muted)]">
+        <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
           该知识点已在大纲中注册，支持被其他章节或学科提前跨科引用。待学习完成后，由 Agent 在
-          <code class="mx-1 rounded bg-[var(--surface-subtle)] px-1.5 py-0.5 text-xs">
+          <code class="mx-1 rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs text-foreground">
             src/content/kb/{topic.id}/index.mdx
           </code>
           写入正文与交互可视化组件即可自动点亮。
         </p>
         {topic.vizHint && (
-          <p class="mt-3 text-xs text-[var(--accent)]">
-            推荐交互形态：{topic.vizHint.toUpperCase()} 可视化演示
-          </p>
+          <div class="mt-4">
+            <span class={badgeVariants({ variant: 'outline' })}>
+              推荐交互形态：{topic.vizHint.toUpperCase()} 可视化演示
+            </span>
+          </div>
         )}
       </section>
     )
@@ -109,8 +113,8 @@ const updatedAt = topic.entry?.data.updatedAt;
   <!-- Reference Sources -->
   {
     sources.length > 0 && (
-      <section class="mt-12 border-t border-[var(--border)] pt-6">
-        <h2 class="font-editorial text-base font-semibold text-[var(--text)]">
+      <section class="mt-12 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-xs">
+        <h2 class="font-editorial text-base font-semibold text-foreground">
           参考源 (Reference Sources)
         </h2>
         <ul class="mt-3 space-y-2 text-sm">
