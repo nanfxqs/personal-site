@@ -39,7 +39,9 @@ const journal = defineCollection({
   schema: z.object({
     title: z.string(),
     date: z.coerce.date(),
-    datePrecision: z.enum(['day', 'minute']).default('day'),
+    datePrecision: z.enum(['day', 'minute', 'approximate']).default('day'),
+    dateLabel: z.string().optional(),
+    dateNote: z.string().optional(),
     summary: z.string().optional(),
     mood: z.string().optional(),
     tags: z.array(z.string()).default([]),

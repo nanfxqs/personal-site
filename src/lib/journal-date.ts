@@ -1,4 +1,4 @@
-export type JournalDatePrecision = 'day' | 'minute';
+export type JournalDatePrecision = 'day' | 'minute' | 'approximate';
 
 export interface JournalDateInput {
   date: Date;
@@ -30,7 +30,9 @@ function getBeijingParts(date: Date) {
 export function formatJournalDate(
   date: Date,
   precision: JournalDatePrecision = 'day',
+  label?: string,
 ): string {
+  if (label) return label;
   const { year, month, day, hour, minute } = getBeijingParts(date);
   if (precision === 'minute') {
     return `${year}-${month}-${day} ${hour}:${minute}`;
@@ -41,7 +43,8 @@ export function formatJournalDate(
 export function formatJournalDateTimeAttr(
   date: Date,
   precision: JournalDatePrecision = 'day',
-): string {
+): string | undefined {
+  if (precision === 'approximate') return undefined;
   const { year, month, day, hour, minute } = getBeijingParts(date);
   if (precision === 'minute') {
     return `${year}-${month}-${day}T${hour}:${minute}+08:00`;

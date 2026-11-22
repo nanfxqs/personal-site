@@ -40,7 +40,7 @@ const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
         {
           posts.map((post) => {
             const slug = normalizeJournalSlug(post.id);
-            const dateStr = formatJournalDate(post.data.date, post.data.datePrecision);
+            const dateStr = formatJournalDate(post.data.date, post.data.datePrecision, post.data.dateLabel);
             const dateTimeAttr = formatJournalDateTimeAttr(
               post.data.date,
               post.data.datePrecision,
@@ -60,9 +60,9 @@ const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
                   class="group block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 transition-colors hover:border-[var(--text)]"
                 >
                   <div class="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
-                    <time datetime={dateTimeAttr} class="font-mono font-medium text-[var(--text)]">
-                      {dateStr}
-                    </time>
+                    <span class="font-mono font-medium text-[var(--text)]">
+                      {dateTimeAttr ? <time datetime={dateTimeAttr}>{dateStr}</time> : dateStr}
+                    </span>
                     {post.data.mood && <span>· {post.data.mood}</span>}
                     {post.data.media.length > 0 && (
                       <span class="rounded-full border border-[var(--border)] px-2 py-0.5 text-[11px]">

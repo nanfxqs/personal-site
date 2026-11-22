@@ -246,7 +246,7 @@ async function buildKnowledgeIndex(): Promise<KnowledgeIndex> {
           title: post.data.title,
           href: `/journal/${slug}`,
           kind: 'journal',
-          meta: `日常 · ${formatJournalDate(post.data.date, post.data.datePrecision)}`,
+          meta: `日常 · ${formatJournalDate(post.data.date, post.data.datePrecision, post.data.dateLabel)}`,
         });
       }
     }

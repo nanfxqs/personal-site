@@ -15,7 +15,7 @@ export async function getStaticPaths() {
 const { post } = Astro.props;
 const { Content } = await render(post);
 const index = await getKnowledgeIndex();
-const dateStr = formatJournalDate(post.data.date, post.data.datePrecision);
+const dateStr = formatJournalDate(post.data.date, post.data.datePrecision, post.data.dateLabel);
 const dateTimeAttr = formatJournalDateTimeAttr(post.data.date, post.data.datePrecision);
 const referenced = post.data.referencedTopics
   .map((id) => index.topicsById.get(id))
@@ -28,7 +28,9 @@ const referenced = post.data.referencedTopics
       <div class="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
         <a href="/journal" class="hover:text-[var(--accent)]">← 返回日常</a>
         <span>·</span>
-        <time datetime={dateTimeAttr} class="font-mono">{dateStr}</time>
+        <span class="font-mono">
+          {dateTimeAttr ? <time datetime={dateTimeAttr}>{dateStr}</time> : dateStr}
+        </span>
         {post.data.mood && (
           <>
             <span>·</span>
