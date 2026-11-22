@@ -35,7 +35,7 @@ const pageTitle = title ? `${title} · ${SITE.nickname}` : SITE.title;
   </head>
   <body class="flex min-h-screen flex-col">
     <TopNav />
-    <main class:list={['flex-1', wide ? 'w-full' : 'mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8']}>
+    <main class:list={['page-content flex-1', wide ? 'w-full' : 'mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8']}>
       <slot />
     </main>
     <SearchModal />

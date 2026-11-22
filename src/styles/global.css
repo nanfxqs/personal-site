@@ -4,6 +4,46 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-group(root),
+::view-transition-new(root),
+::view-transition-group(site-nav),
+::view-transition-new(site-nav) {
+  animation: none;
+}
+
+::view-transition-old(root),
+::view-transition-old(site-nav) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .site-nav {
+    view-transition-name: site-nav;
+  }
+
+  .page-content {
+    view-transition-name: page-content;
+  }
+
+  ::view-transition-old(page-content),
+  ::view-transition-new(page-content) {
+    animation-duration: 180ms;
+    animation-timing-function: ease-out;
+  }
+
+  ::view-transition-group(page-content) {
+    animation-duration: 180ms;
+  }
+
+  ::view-transition-group(site-nav) {
+    z-index: 1;
+  }
+}
+
 :root {
   --bg: #ffffff;
   --surface: #fafafa;
