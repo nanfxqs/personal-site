@@ -45,8 +45,7 @@ const index = await getKnowledgeIndex();
             <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {subject.courses.map((course) => {
                 const cStats = index.courseStats.get(`${subject.id}/${course.id}`);
-                const firstTopic = course.chapters[0]?.sections[0]?.topics[0];
-                const href = firstTopic ? `/kb/${firstTopic.id}` : `/kb/${subject.id}`;
+                const href = `/kb/${subject.id}/${course.id}`;
                 return (
                   <a
                     href={href}

@@ -1,0 +1,236 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import StudyStatusBadge from '@/components/kb/StudyStatusBadge.astro';
+import CircularProgress from '@/components/kb/CircularProgress.astro';
+import { SUBJECT_LIST, SYLLABI, type SubjectId } from '@/data/syllabus';
+import { getKnowledgeIndex } from '@/lib/kb-graph';
+
+export function getStaticPaths() {
+  return SUBJECT_LIST.flatMap((subject) =>
+    subject.courses.map((course) => ({
+      params: { subject: subject.id, course: course.id },
+    })),
+  );
+}
+
+const subjectId = Astro.params.subject as SubjectId;
+const courseId = Astro.params.course as string;
+const subject = SYLLABI[subjectId];
+const course = subject.courses.find((c) => c.id === courseId)!;
+const index = await getKnowledgeIndex();
+
+const cStats = index.courseStats.get(`${subject.id}/${course.id}`) ?? {
+  total: 0,
+  published: 0,
+  mastered: 0,
+  inProgress: 0,
+  notStarted: 0,
+  percent: 0,
+};
+
+const writtenPercent =
+  cStats.total > 0 ? Math.round((cStats.published / cStats.total) * 100) : 0;
+const displayPercent =
+  cStats.percent > 0
+    ? cStats.percent
+    : cStats.published > 0
+      ? Math.max(1, writtenPercent)
+      : 0;
+
+// Find the best entry topic for CTA: first published topic, otherwise first syllabus topic
+const allCourseTopics = course.chapters.flatMap((ch) =>
+  ch.sections.flatMap((sec) => sec.topics),
+);
+const firstPublishedStub = allCourseTopics.find(
+  (stub) => index.topicsById.get(stub.id)?.isPublished,
+);
+const startTopicStub = firstPublishedStub ?? allCourseTopics[0];
+const startHref = startTopicStub ? `/kb/${startTopicStub.id}` : `/kb/${subject.id}`;
+const startLabel = firstPublishedStub ? '继续学习' : '开始学习';
+---
+
+<BaseLayout title={`${course.title} · ${subject.title}`} description={course.description}>
+  <header class="border-b border-[var(--border)] py-10">
+    <nav aria-label="面包屑" class="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]">
+      <a href={`/kb/${subject.id}`} class="hover:text-[var(--text)] transition-colors">
+        ← {subject.title}
+      </a>
+      <span>/</span>
+      <span class="text-[var(--text)]">{course.title}</span>
+    </nav>
+
+    <div class="mt-5 flex flex-wrap items-center justify-between gap-6">
+      <div>
+        <div class="text-xs font-mono uppercase tracking-wider text-[var(--text-muted)]">
+          Course · {subject.code} · {course.scoreShare}
+        </div>
+        <h1 class="mt-2 font-editorial text-3xl font-semibold text-[var(--text)] sm:text-4xl">
+          {course.title}
+        </h1>
+        <p class="mt-2 max-w-2xl font-editorial text-sm leading-relaxed text-[var(--text-muted)]">
+          {course.description}
+        </p>
+
+        <div class="mt-5 flex flex-wrap items-center gap-2.5">
+          <a
+            href={startHref}
+            class="inline-flex items-center gap-2 rounded-full border border-[var(--text)] bg-[var(--text)] px-4 py-1.5 text-xs font-medium text-[var(--bg)] transition-opacity hover:opacity-85"
+          >
+            <span>{startLabel}</span>
+            <span aria-hidden="true">→</span>
+          </a>
+          <a
+            href={`/kb/${subject.id}`}
+            class="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--text)] hover:text-[var(--text)]"
+          >
+            <span>返回学科总览</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Dynamic Monochrome Circular Progress for Course -->
+      <div class="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3.5">
+        <CircularProgress
+          percent={displayPercent}
+          secondaryPercent={writtenPercent}
+          size={80}
+          label="进度"
+          idPrefix={`course-${subject.id}-${course.id}`}
+          title={`${course.title} · 学习进度 ${displayPercent}% · 已写入 ${cStats.published}/${cStats.total} · 已掌握 ${cStats.mastered} · 学习中 ${cStats.inProgress}`}
+        />
+        <div class="space-y-1 text-xs">
+          <div class="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
+            {course.chapters.length} Chapters
+          </div>
+          <div class="flex items-center gap-1.5 text-[var(--text)]">
+            <span class="h-1.5 w-1.5 rounded-full bg-[var(--text)]"></span>
+            <span>已掌握 {cStats.mastered}</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-[var(--text-muted)]">
+            <span class="h-1.5 w-1.5 rounded-full border border-[var(--text-muted)]"></span>
+            <span>学习中 {cStats.inProgress}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sibling course switcher pills -->
+    <div class="mt-6 flex flex-wrap gap-2">
+      {
+        subject.courses.map((sibling) => {
+          const isCurrent = sibling.id === course.id;
+          return (
+            <a
+              href={`/kb/${subject.id}/${sibling.id}`}
+              class:list={[
+                'rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors',
+                isCurrent
+                  ? 'border-[var(--text)] bg-[var(--text)] text-[var(--bg)]'
+                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--text)] hover:text-[var(--text)]',
+              ]}
+            >
+              {sibling.title} · {sibling.scoreShare}
+            </a>
+          );
+        })
+      }
+    </div>
+  </header>
+
+  <!-- Full Chapter-by-Chapter Syllabus for this Course -->
+  <section class="space-y-6 py-10">
+    {
+      course.chapters.map((chapter) => {
+        const topicIds = chapter.sections.flatMap((s) => s.topics.map((t) => t.id));
+        const publishedCount = topicIds.filter(
+          (id) => index.topicsById.get(id)?.isPublished,
+        ).length;
+        const chapterPct =
+          topicIds.length > 0 ? Math.round((publishedCount / topicIds.length) * 100) : 0;
+
+        return (
+          <article class="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+            <div class="flex flex-wrap items-baseline justify-between gap-2 pb-3">
+              <div class="flex flex-wrap items-baseline gap-2.5">
+                <span class="font-mono text-xs text-[var(--text-muted)]">
+                  Chapter {String(chapter.order).padStart(2, '0')}
+                </span>
+                <h2 class="font-editorial text-xl font-semibold text-[var(--text)]">
+                  {chapter.title}
+                </h2>
+                {chapter.weight && (
+                  <span class="text-xs text-amber-600/80 dark:text-amber-400/80">
+                    {chapter.weight}
+                  </span>
+                )}
+              </div>
+              {chapter.textbookRef && (
+                <span class="text-xs text-[var(--text-muted)]">{chapter.textbookRef}</span>
+              )}
+            </div>
+
+            {/* Subtle horizontal gradient progress bar per chapter */}
+            <div class="course-progress-track mb-5 h-1 w-full overflow-hidden rounded-full">
+              <div
+                class="course-progress-fill h-full rounded-full"
+                style={`width: ${chapterPct}%;`}
+              />
+            </div>
+
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              {chapter.sections.map((section) => (
+                <div>
+                  <div class="mb-2 text-[11px] font-medium tracking-wide text-[var(--text-muted)]">
+                    {section.title}
+                  </div>
+                  <ul class="space-y-1">
+                    {section.topics.map((stub) => {
+                      const resolved = index.topicsById.get(stub.id);
+                      const isPublished = resolved?.isPublished ?? false;
+                      const status = resolved?.status ?? '未开始';
+                      return (
+                        <li>
+                          <a
+                            href={`/kb/${stub.id}`}
+                            class:list={[
+                              'flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-colors',
+                              isPublished
+                                ? 'bg-[var(--surface-subtle)] font-medium text-[var(--text)] hover:underline'
+                                : 'text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]',
+                            ]}
+                          >
+                            <span class="flex items-center gap-2 min-w-0">
+                              <StudyStatusBadge status={status} compact />
+                              <span class="truncate">{resolved?.title ?? stub.title}</span>
+                            </span>
+                            <span class="flex shrink-0 items-center gap-1.5">
+                              {stub.math1Only && (
+                                <span class="rounded border border-[var(--border)] px-1 py-0.5 text-[9px] text-[var(--text-muted)]">
+                                  数一
+                                </span>
+                              )}
+                              {stub.viz && (
+                                <span class="rounded border border-[var(--border)] px-1 py-0.5 font-mono text-[9px] uppercase text-[var(--text-muted)]">
+                                  {stub.viz}
+                                </span>
+                              )}
+                              {stub.weight && (
+                                <span class="text-[10px] text-amber-600/80 dark:text-amber-400/80">
+                                  {stub.weight}
+                                </span>
+                              )}
+                            </span>
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </article>
+        );
+      })
+    }
+  </section>
+</BaseLayout>

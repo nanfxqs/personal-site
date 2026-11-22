@@ -1,0 +1,198 @@
+---
+interface Props {
+  percent: number;
+  secondaryPercent?: number;
+  size?: number;
+  label?: string;
+  title?: string;
+  idPrefix: string;
+}
+
+const {
+  percent,
+  secondaryPercent = 0,
+  size = 84,
+  label = '进度',
+  title,
+  idPrefix,
+} = Astro.props;
+
+const clampedPrimary = Math.max(0, Math.min(100, Math.round(percent)));
+const clampedSecondary = Math.max(clampedPrimary, Math.min(100, Math.round(secondaryPercent)));
+const radius = 34;
+const circumference = Number((2 * Math.PI * radius).toFixed(2));
+const gradId = `${idPrefix}-ring-grad`;
+---
+
+<div
+  class="relative inline-flex shrink-0 items-center justify-center select-none"
+  style={`width: ${size}px; height: ${size}px;`}
+  role="progressbar"
+  aria-valuenow={clampedPrimary}
+  aria-valuemin={0}
+  aria-valuemax={100}
+  aria-label={title ?? `当前进度 ${clampedPrimary}%`}
+  title={title}
+  data-circular-progress
+  data-target-percent={clampedPrimary}
+  data-secondary-percent={clampedSecondary}
+  data-circumference={circumference}
+>
+  <svg
+    class="h-full w-full -rotate-90"
+    viewBox="0 0 84 84"
+    aria-hidden="true"
+  >
+    <defs>
+      <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="var(--text-muted)" stop-opacity="0.55" />
+        <stop offset="55%" stop-color="var(--text-muted)" />
+        <stop offset="100%" stop-color="var(--text)" />
+      </linearGradient>
+    </defs>
+
+    {/* Subtle background track */}
+    <circle
+      cx="42"
+      cy="42"
+      r={radius}
+      fill="none"
+      stroke="var(--border)"
+      stroke-width="3.5"
+    />
+
+    {/* Optional secondary subtle arc (e.g. published / written coverage) */}
+    {
+      clampedSecondary > clampedPrimary && (
+        <circle
+          data-secondary-arc
+          cx="42"
+          cy="42"
+          r={radius}
+          fill="none"
+          stroke="var(--text-muted)"
+          stroke-opacity="0.28"
+          stroke-width="3.5"
+          stroke-linecap="round"
+          stroke-dasharray={circumference}
+          stroke-dashoffset={circumference}
+          style="transition: stroke-dashoffset 1000ms cubic-bezier(0.22, 1, 0.36, 1);"
+        />
+      )
+    }
+
+    {/* Primary animated monochrome gradient arc */}
+    <circle
+      data-primary-arc
+      cx="42"
+      cy="42"
+      r={radius}
+      fill="none"
+      stroke={`url(#${gradId})`}
+      stroke-width="4"
+      stroke-linecap="round"
+      stroke-dasharray={circumference}
+      stroke-dashoffset={circumference}
+      style="transition: stroke-dashoffset 1000ms cubic-bezier(0.22, 1, 0.36, 1);"
+    />
+  </svg>
+
+  <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center leading-none">
+    <span class="font-mono text-base font-semibold tracking-tight text-[var(--text)]">
+      <span data-percent-value>{clampedPrimary}</span><span class="text-[11px] font-normal text-[var(--text-muted)]">%</span>
+    </span>
+    {
+      label && (
+        <span class="mt-1 text-[10px] tracking-wider text-[var(--text-muted)]">
+          {label}
+        </span>
+      )
+    }
+  </div>
+</div>
+
+<script is:inline>
+  (() => {
+    if (window.__nanfCircularProgressInit) return;
+    window.__nanfCircularProgressInit = true;
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function animateRing(el) {
+      if (el.getAttribute('data-animated') === 'true') return;
+      el.setAttribute('data-animated', 'true');
+
+      const target = Number(el.getAttribute('data-target-percent') || '0');
+      const secondary = Number(el.getAttribute('data-secondary-percent') || '0');
+      const circumference = Number(el.getAttribute('data-circumference') || '213.63');
+      const primaryArc = el.querySelector('[data-primary-arc]');
+      const secondaryArc = el.querySelector('[data-secondary-arc]');
+      const valueEl = el.querySelector('[data-percent-value]');
+
+      const primaryOffset =
+        target > 0 ? circumference * (1 - target / 100) : circumference;
+      const secondaryOffset =
+        secondary > 0 ? circumference * (1 - secondary / 100) : circumference;
+
+      if (reduceMotion) {
+        if (primaryArc) primaryArc.style.strokeDashoffset = String(primaryOffset);
+        if (secondaryArc) secondaryArc.style.strokeDashoffset = String(secondaryOffset);
+        if (valueEl) valueEl.textContent = String(target);
+        return;
+      }
+
+      if (valueEl) valueEl.textContent = '0';
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (primaryArc) primaryArc.style.strokeDashoffset = String(primaryOffset);
+          if (secondaryArc) secondaryArc.style.strokeDashoffset = String(secondaryOffset);
+        });
+      });
+
+      if (valueEl && target > 0) {
+        const duration = 850;
+        const start = performance.now();
+        const step = (now) => {
+          const progress = Math.min(1, (now - start) / duration);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          valueEl.textContent = String(Math.round(target * eased));
+          if (progress < 1) {
+            requestAnimationFrame(step);
+          } else {
+            valueEl.textContent = String(target);
+          }
+        };
+        requestAnimationFrame(step);
+      }
+    }
+
+    function initAll() {
+      const rings = document.querySelectorAll('[data-circular-progress]');
+      if (!rings.length) return;
+
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                animateRing(entry.target);
+                io.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.15 },
+        );
+        rings.forEach((ring) => io.observe(ring));
+      } else {
+        rings.forEach((ring) => animateRing(ring));
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initAll, { once: true });
+    } else {
+      initAll();
+    }
+  })();
+</script>

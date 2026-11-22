@@ -32,7 +32,9 @@ const updatedAt = topic.entry?.data.updatedAt;
         {topic.subjectTitle}
       </a>
       <span>/</span>
-      <span>{topic.courseTitle}</span>
+      <a href={`/kb/${topic.subjectId}/${topic.courseId}`} class="hover:text-[var(--accent)]">
+        {topic.courseTitle}
+      </a>
       <span>/</span>
       <span>{topic.chapterTitle}</span>
       <span>/</span>
