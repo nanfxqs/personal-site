@@ -10,45 +10,122 @@ const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
 
 <BaseLayout title="个人日常">
   <header class="border-b border-[var(--border)] py-12">
-    <h1 class="font-editorial text-3xl font-semibold text-[var(--text)] sm:text-4xl">
-      个人日常与随笔
-    </h1>
-    <p class="mt-2 text-sm text-[var(--text-muted)]">
-      按时间线记录生活片段、随笔感慨、图像与影音。共 {posts.length} 篇。
-    </p>
+    <div class="flex flex-wrap items-baseline justify-between gap-4">
+      <div>
+        <h1 class="font-editorial text-3xl font-semibold text-[var(--text)] sm:text-4xl">
+          个人日常与随笔
+        </h1>
+        <p class="mt-2 text-sm text-[var(--text-muted)]">
+          竖向可拖拽渐隐时间线 · 记录生活片段、随笔感慨、图像与影音。共 {posts.length} 篇。
+        </p>
+      </div>
+      <span class="hidden text-xs font-mono text-[var(--text-muted)] sm:inline">
+        支持鼠标上下拖拽或滚轮浏览
+      </span>
+    </div>
   </header>
 
-  <section class="divide-y divide-[var(--border)] py-8">
-    {
-      posts.map((post) => {
-        const slug = normalizeJournalSlug(post.id);
-        const dateStr = post.data.date.toISOString().slice(0, 10);
-        return (
-          <article class="py-8 first:pt-2">
-            <a href={`/journal/${slug}`} class="group block">
-              <div class="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
-                <time datetime={dateStr} class="font-mono">
-                  {dateStr}
-                </time>
-                {post.data.mood && <span>· {post.data.mood}</span>}
-                {post.data.media.length > 0 && (
-                  <span class="rounded-full bg-[var(--surface-subtle)] px-2 py-0.5 text-[11px]">
-                    含 {post.data.media.length} 个媒体附件
-                  </span>
-                )}
-              </div>
-              <h2 class="mt-2 font-editorial text-2xl font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
-                {post.data.title}
-              </h2>
-              {post.data.summary && (
-                <p class="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--text-muted)]">
-                  {post.data.summary}
-                </p>
-              )}
-            </a>
-          </article>
-        );
-      })
-    }
+  <!-- Vertical Draggable & Fading Timeline -->
+  <section class="py-8">
+    <div
+      id="vertical-timeline-viewport"
+      class="timeline-fade-mask relative max-h-[72vh] overflow-y-auto px-2 py-10 select-none sm:cursor-grab"
+    >
+      <div class="relative mx-auto max-w-3xl border-l border-[var(--border)] pl-7 sm:pl-10">
+        {
+          posts.map((post) => {
+            const slug = normalizeJournalSlug(post.id);
+            const dateStr = post.data.date.toISOString().slice(0, 10);
+            return (
+              <article
+                data-timeline-item
+                class="relative pb-12 last:pb-2 transition-opacity duration-200"
+              >
+                {/* Timeline node */}
+                <span class="absolute -left-[33px] top-1.5 flex h-3 w-3 items-center justify-center rounded-full border border-[var(--text)] bg-[var(--bg)] sm:-left-[45px]">
+                  <span class="h-1.5 w-1.5 rounded-full bg-[var(--text)]" />
+                </span>
+
+                <a
+                  href={`/journal/${slug}`}
+                  class="group block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 transition-colors hover:border-[var(--text)]"
+                >
+                  <div class="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
+                    <time datetime={dateStr} class="font-mono font-medium text-[var(--text)]">
+                      {dateStr}
+                    </time>
+                    {post.data.mood && <span>· {post.data.mood}</span>}
+                    {post.data.media.length > 0 && (
+                      <span class="rounded-full border border-[var(--border)] px-2 py-0.5 text-[11px]">
+                        含 {post.data.media.length} 个媒体附件
+                      </span>
+                    )}
+                    {post.data.tags.map((tag) => (
+                      <span class="text-[11px] text-[var(--text-muted)]">#{tag}</span>
+                    ))}
+                  </div>
+
+                  <h2 class="mt-2.5 font-editorial text-2xl font-semibold text-[var(--text)] group-hover:underline decoration-[var(--border)] underline-offset-4">
+                    {post.data.title}
+                  </h2>
+
+                  {post.data.summary && (
+                    <p class="mt-2 font-editorial text-sm leading-relaxed text-[var(--text-muted)]">
+                      {post.data.summary}
+                    </p>
+                  )}
+                </a>
+              </article>
+            );
+          })
+        }
+      </div>
+    </div>
   </section>
 </BaseLayout>
+
+<script is:inline>
+  (() => {
+    const viewport = document.getElementById('vertical-timeline-viewport');
+    if (!viewport) return;
+
+    let isDown = false;
+    let startY = 0;
+    let scrollTop = 0;
+    let dragged = false;
+
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isDown = true;
+      dragged = false;
+      startY = e.pageY - viewport.offsetTop;
+      scrollTop = viewport.scrollTop;
+      viewport.classList.add('sm:cursor-grabbing');
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDown = false;
+      viewport.classList.remove('sm:cursor-grabbing');
+    });
+
+    viewport.addEventListener('mousemove', (e) => {
+      if (!isDown) return;
+      const y = e.pageY - viewport.offsetTop;
+      const walk = y - startY;
+      if (Math.abs(walk) > 6) dragged = true;
+      viewport.scrollTop = scrollTop - walk;
+    });
+
+    // Prevent accidental navigation immediately after dragging
+    viewport.addEventListener(
+      'click',
+      (e) => {
+        if (dragged) {
+          e.preventDefault();
+          dragged = false;
+        }
+      },
+      true,
+    );
+  })();
+</script>

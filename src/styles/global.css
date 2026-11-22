@@ -1,31 +1,32 @@
+@import url("https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/style.css");
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg: #faf9f6;
-  --surface: #ffffff;
-  --surface-subtle: #f3f1ec;
-  --border: #e6e2d8;
-  --text: #1c1917;
-  --text-muted: #57534e;
-  --accent: #9a3412;
-  --accent-soft: #ffedd5;
-  --font-serif: "Noto Serif SC", "Songti SC", "Source Han Serif SC", Georgia, "Times New Roman", serif;
+  --bg: #ffffff;
+  --surface: #fafafa;
+  --surface-subtle: #f4f4f5;
+  --border: #e4e4e7;
+  --text: #09090b;
+  --text-muted: #71717a;
+  --accent: #18181b;
+  --accent-soft: #f4f4f5;
+  --font-serif: "LXGW WenKai Screen", "Noto Serif SC", "Songti SC", Georgia, serif;
   --font-sans: "Inter", "PingFang SC", "Noto Sans SC", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .dark {
-  --bg: #121211;
-  --surface: #1a1918;
-  --surface-subtle: #22211f;
-  --border: #2e2c29;
-  --text: #f5f4f0;
-  --text-muted: #a8a29e;
-  --accent: #fb923c;
-  --accent-soft: #3b1d0c;
+  --bg: #09090b;
+  --surface: #111113;
+  --surface-subtle: #18181b;
+  --border: #27272a;
+  --text: #fafafa;
+  --text-muted: #a1a1aa;
+  --accent: #f4f4f5;
+  --accent-soft: #27272a;
 }
 
 @layer base {
@@ -49,33 +50,44 @@
     letter-spacing: -0.01em;
   }
 
-  code, pre {
+  code, pre, kbd {
     font-family: var(--font-mono);
   }
 }
 
-/* Editorial prose refinements */
+/* Editorial prose using LXGW WenKai Screen for comfortable long-form reading */
 .prose-editorial {
+  font-family: var(--font-serif);
   --tw-prose-body: var(--text);
   --tw-prose-headings: var(--text);
   --tw-prose-lead: var(--text-muted);
-  --tw-prose-links: var(--accent);
+  --tw-prose-links: var(--text);
   --tw-prose-bold: var(--text);
   --tw-prose-counters: var(--text-muted);
   --tw-prose-bullets: var(--text-muted);
   --tw-prose-hr: var(--border);
   --tw-prose-quotes: var(--text);
-  --tw-prose-quote-borders: var(--accent);
+  --tw-prose-quote-borders: var(--text);
   --tw-prose-code: var(--text);
   --tw-prose-pre-bg: var(--surface-subtle);
   --tw-prose-th-borders: var(--border);
   --tw-prose-td-borders: var(--border);
-  line-height: 1.85;
+  line-height: 1.9;
 }
 
 .prose-editorial pre {
+  font-family: var(--font-mono);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
+}
+
+.prose-editorial a {
+  text-decoration-color: var(--border);
+  text-underline-offset: 4px;
+}
+
+.prose-editorial a:hover {
+  text-decoration-color: var(--text);
 }
 
 /* KaTeX overflow handling */
@@ -85,7 +97,54 @@
   padding: 0.5rem 0;
 }
 
-/* Editorial hairline divider */
-.hairline {
-  border-color: var(--border);
+/* Animated monochrome border aura for TopNav exam subject pill */
+@keyframes subject-pill-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.subject-pill-wrap {
+  position: relative;
+  padding: 1px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    110deg,
+    var(--border) 0%,
+    var(--text-muted) 35%,
+    var(--text) 50%,
+    var(--text-muted) 65%,
+    var(--border) 100%
+  );
+  background-size: 220% 220%;
+  animation: subject-pill-shimmer 7s ease-in-out infinite;
+}
+
+.subject-pill-inner {
+  border-radius: 9999px;
+  background-color: var(--bg);
+}
+
+/* Vertical fading mask for journal timeline */
+.timeline-fade-mask {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 7%,
+    black 91%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 7%,
+    black 91%,
+    transparent 100%
+  );
 }

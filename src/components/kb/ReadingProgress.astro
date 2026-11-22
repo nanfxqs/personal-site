@@ -1,0 +1,72 @@
+---
+---
+<button
+  id="reading-progress-btn"
+  type="button"
+  aria-label="阅读进度，点击返回顶部"
+  title="点击返回顶部"
+  class="fixed right-5 bottom-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/90 shadow-lg backdrop-blur-md transition-transform hover:scale-105 cursor-pointer"
+>
+  <svg class="h-12 w-12 -rotate-90" viewBox="0 0 48 48" aria-hidden="true">
+    <defs>
+      <linearGradient id="mono-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="var(--text-muted)" />
+        <stop offset="100%" stop-color="var(--text)" />
+      </linearGradient>
+    </defs>
+    <circle
+      cx="24"
+      cy="24"
+      r="19"
+      fill="none"
+      stroke="var(--border)"
+      stroke-width="2"
+    />
+    <circle
+      id="reading-progress-arc"
+      cx="24"
+      cy="24"
+      r="19"
+      fill="none"
+      stroke="url(#mono-ring-grad)"
+      stroke-width="2.4"
+      stroke-linecap="round"
+      stroke-dasharray="119.38"
+      stroke-dashoffset="119.38"
+    />
+  </svg>
+  <span
+    id="reading-progress-text"
+    class="absolute font-mono text-[10px] font-medium text-[var(--text)]"
+  >
+    0%
+  </span>
+</button>
+
+<script is:inline>
+  (() => {
+    const btn = document.getElementById('reading-progress-btn');
+    const arc = document.getElementById('reading-progress-arc');
+    const label = document.getElementById('reading-progress-text');
+    if (!btn || !arc || !label) return;
+
+    const circumference = 2 * Math.PI * 19;
+
+    function updateProgress() {
+      const doc = document.documentElement;
+      const maxScroll = Math.max(1, doc.scrollHeight - window.innerHeight);
+      const ratio = Math.min(1, Math.max(0, window.scrollY / maxScroll));
+      const pct = Math.round(ratio * 100);
+      arc.style.strokeDashoffset = String(circumference * (1 - ratio));
+      label.textContent = `${pct}%`;
+    }
+
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    window.addEventListener('resize', updateProgress, { passive: true });
+    updateProgress();
+
+    btn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  })();
+</script>
