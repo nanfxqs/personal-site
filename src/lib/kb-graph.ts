@@ -1,4 +1,5 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
+import { formatJournalDate } from '@/lib/journal-date';
 import {
   getAllSyllabusTopics,
   SUBJECT_LIST,
@@ -245,7 +246,7 @@ async function buildKnowledgeIndex(): Promise<KnowledgeIndex> {
           title: post.data.title,
           href: `/journal/${slug}`,
           kind: 'journal',
-          meta: `日常 · ${post.data.date.toISOString().slice(0, 10)}`,
+          meta: `日常 · ${formatJournalDate(post.data.date, post.data.datePrecision)}`,
         });
       }
     }
