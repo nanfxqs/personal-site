@@ -93,11 +93,19 @@ const stats = index.subjectStats[subjectId];
               </span>
             </div>
 
-            {/* PC (md+): Edge-fading horizontal linked-list chapter bar (no scrollbar + wheel-to-horizontal) */}
-            <div class="relative hidden md:block">
+            {/* PC (md+): Edge-fading horizontal linked-list chapter bar (no scrollbar + arrows + wheel-to-horizontal) */}
+            <div class="relative hidden md:block" data-linked-list-wrapper>
+              <button
+                type="button"
+                data-scroll-prev
+                aria-label="向左滚动章节"
+                class="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/90 text-sm text-[var(--text)] shadow-sm backdrop-blur-sm transition-all hover:border-[var(--text)] disabled:pointer-events-none disabled:opacity-0 cursor-pointer"
+              >
+                ‹
+              </button>
               <div
                 data-linked-list-bar
-                class="horizontal-fade-mask no-scrollbar flex items-center overflow-x-auto px-6 py-4 select-none cursor-grab"
+                class="horizontal-fade-mask no-scrollbar flex items-center overflow-x-auto px-10 py-4 select-none cursor-grab"
               >
                 {chaptersWithCounts.map(({ chapter, publishedCount, totalCount }, chIdx) => {
                   const hasNotes = publishedCount > 0;
@@ -149,6 +157,14 @@ const stats = index.subjectStats[subjectId];
                   );
                 })}
               </div>
+              <button
+                type="button"
+                data-scroll-next
+                aria-label="向右滚动章节"
+                class="absolute right-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/90 text-sm text-[var(--text)] shadow-sm backdrop-blur-sm transition-all hover:border-[var(--text)] disabled:pointer-events-none disabled:opacity-0 cursor-pointer"
+              >
+                ›
+              </button>
 
               {/* Active Chapter Detail Panel on PC */}
               <div class="mt-3">
@@ -364,12 +380,40 @@ const stats = index.subjectStats[subjectId];
       });
     });
 
-    // 2. Smooth horizontal drag-to-scroll & mouse wheel horizontal binding on PC linked-list bars
-    document.querySelectorAll('[data-linked-list-bar]').forEach((bar) => {
+    // 2. Smooth horizontal drag-to-scroll, arrow buttons & mouse wheel binding on PC linked-list bars
+    document.querySelectorAll('[data-linked-list-wrapper]').forEach((wrapper) => {
+      const bar = wrapper.querySelector('[data-linked-list-bar]');
+      const prevBtn = wrapper.querySelector('[data-scroll-prev]');
+      const nextBtn = wrapper.querySelector('[data-scroll-next]');
+      if (!bar) return;
+
       let isDown = false;
       let startX = 0;
       let scrollLeft = 0;
       let dragged = false;
+
+      function updateArrows() {
+        const hasOverflow = bar.scrollWidth > bar.clientWidth + 2;
+        if (prevBtn instanceof HTMLButtonElement) {
+          prevBtn.disabled = !hasOverflow || bar.scrollLeft <= 2;
+        }
+        if (nextBtn instanceof HTMLButtonElement) {
+          nextBtn.disabled =
+            !hasOverflow || bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 2;
+        }
+      }
+
+      prevBtn?.addEventListener('click', () => {
+        bar.scrollBy({ left: -260, behavior: 'smooth' });
+      });
+
+      nextBtn?.addEventListener('click', () => {
+        bar.scrollBy({ left: 260, behavior: 'smooth' });
+      });
+
+      bar.addEventListener('scroll', updateArrows, { passive: true });
+      window.addEventListener('resize', updateArrows, { passive: true });
+      updateArrows();
 
       bar.addEventListener(
         'wheel',
