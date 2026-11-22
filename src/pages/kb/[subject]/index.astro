@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import StudyStatusBadge from '@/components/kb/StudyStatusBadge.astro';
+import CircularProgress from '@/components/kb/CircularProgress.astro';
 import { SUBJECT_LIST, SYLLABI, type SubjectId } from '@/data/syllabus';
 import { getKnowledgeIndex } from '@/lib/kb-graph';
 
@@ -14,11 +15,20 @@ const subjectId = Astro.params.subject as SubjectId;
 const subject = SYLLABI[subjectId];
 const index = await getKnowledgeIndex();
 const stats = index.subjectStats[subjectId];
+
+const subjectWrittenPercent =
+  stats.total > 0 ? Math.round((stats.published / stats.total) * 100) : 0;
+const subjectDisplayPercent =
+  stats.percent > 0
+    ? stats.percent
+    : stats.published > 0
+      ? Math.max(1, subjectWrittenPercent)
+      : 0;
 ---
 
 <BaseLayout title={subject.title} description={subject.description}>
   <header class="border-b border-[var(--border)] py-12">
-    <div class="flex flex-wrap items-center justify-between gap-4">
+    <div class="flex flex-wrap items-center justify-between gap-6">
       <div>
         <div class="text-xs font-mono uppercase tracking-wider text-[var(--text-muted)]">
           Subject · {subject.code}
@@ -31,13 +41,28 @@ const stats = index.subjectStats[subjectId];
         </p>
       </div>
 
-      <div class="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3 text-right">
-        <div class="font-mono text-2xl font-semibold text-[var(--text)]">
-          {stats.published}
-          <span class="text-sm font-normal text-[var(--text-muted)]"> / {stats.total}</span>
-        </div>
-        <div class="text-xs text-[var(--text-muted)]">
-          已掌握 {stats.mastered} · 学习中 {stats.inProgress}
+      <!-- Dynamic Monochrome Circular Progress for Subject -->
+      <div class="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3.5">
+        <CircularProgress
+          percent={subjectDisplayPercent}
+          secondaryPercent={subjectWrittenPercent}
+          size={80}
+          label="进度"
+          idPrefix={`subject-${subject.id}`}
+          title={`${subject.title} · 学习进度 ${subjectDisplayPercent}% · 已写入 ${stats.published}/${stats.total} · 已掌握 ${stats.mastered} · 学习中 ${stats.inProgress}`}
+        />
+        <div class="space-y-1 text-xs">
+          <div class="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
+            {subject.code} Progress
+          </div>
+          <div class="flex items-center gap-1.5 text-[var(--text)]">
+            <span class="h-1.5 w-1.5 rounded-full bg-[var(--text)]"></span>
+            <span>已掌握 {stats.mastered}</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-[var(--text-muted)]">
+            <span class="h-1.5 w-1.5 rounded-full border border-[var(--text-muted)]"></span>
+            <span>学习中 {stats.inProgress}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -61,6 +86,18 @@ const stats = index.subjectStats[subjectId];
     {
       subject.courses.map((course) => {
         const cStats = index.courseStats.get(`${subject.id}/${course.id}`);
+        const cTotal = cStats?.total ?? 0;
+        const cPublished = cStats?.published ?? 0;
+        const cMastered = cStats?.mastered ?? 0;
+        const cInProgress = cStats?.inProgress ?? 0;
+        const courseWrittenPercent = cTotal > 0 ? Math.round((cPublished / cTotal) * 100) : 0;
+        const courseDisplayPercent =
+          (cStats?.percent ?? 0) > 0
+            ? (cStats?.percent ?? 0)
+            : cPublished > 0
+              ? Math.max(1, courseWrittenPercent)
+              : 0;
+
         const chaptersWithCounts = course.chapters.map((chapter) => {
           const topicIds = chapter.sections.flatMap((s) => s.topics.map((t) => t.id));
           const publishedCount = topicIds.filter(
@@ -79,100 +116,151 @@ const stats = index.subjectStats[subjectId];
             data-course-section={course.id}
             class="scroll-mt-24"
           >
-            <div class="mb-6 flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--border)] pb-3">
+            <div class="mb-4 flex flex-wrap items-baseline justify-between gap-2">
               <div>
                 <h2 class="font-editorial text-2xl font-semibold text-[var(--text)]">
-                  {course.title}
+                  <a
+                    href={`/kb/${subject.id}/${course.id}`}
+                    class="group inline-flex items-center gap-2 transition-colors hover:opacity-80"
+                  >
+                    <span class="underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-[var(--text-muted)]">
+                      {course.title}
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      class="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] font-sans text-xs font-normal text-[var(--text-muted)] transition-all group-hover:translate-x-0.5 group-hover:border-[var(--text)] group-hover:text-[var(--text)]"
+                    >
+                      →
+                    </span>
+                  </a>
                 </h2>
                 <p class="mt-1 text-xs text-[var(--text-muted)]">
                   {course.scoreShare} · {course.description}
                 </p>
               </div>
-              <span class="font-mono text-xs text-[var(--text-muted)]">
-                已写入 {cStats?.published ?? 0} / {cStats?.total ?? 0}
-              </span>
             </div>
 
-            {/* PC (md+): Edge-fading horizontal linked-list chapter bar (no scrollbar + arrows + wheel-to-horizontal) */}
+            {/* Horizontal gradient course progress bar directly above chapter linked-list nodes */}
+            <div
+              class="mb-3"
+              role="progressbar"
+              aria-valuenow={courseDisplayPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${course.title} 学习进度 ${courseDisplayPercent}%`}
+              title={`${course.title} · 学习进度 ${courseDisplayPercent}% · 已掌握 ${cMastered} · 学习中 ${cInProgress}`}
+              data-course-progress
+              data-primary-width={courseDisplayPercent}
+              data-secondary-width={courseWrittenPercent}
+            >
+              <div class="course-progress-track relative h-1.5 w-full overflow-hidden rounded-full">
+                {courseWrittenPercent > courseDisplayPercent && (
+                  <div
+                    data-bar-secondary
+                    class="course-progress-secondary absolute inset-y-0 left-0 rounded-full"
+                    style="width: 0%;"
+                  />
+                )}
+                <div
+                  data-bar-primary
+                  class="course-progress-fill relative h-full rounded-full"
+                  style="width: 0%;"
+                />
+              </div>
+            </div>
+
+            {/* PC (md+): Edge-fading horizontal linked-list chapter bar (no scrollbar + arrows + wheel-to-horizontal + sliding indicator + click-to-center) */}
             <div class="hidden md:block">
               <div class="relative" data-linked-list-wrapper>
                 <button
                   type="button"
                   data-scroll-prev
                   aria-label="向左滚动章节"
-                  class="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/95 text-sm text-[var(--text)] shadow-sm backdrop-blur-sm transition-all hover:border-[var(--text)] disabled:pointer-events-none disabled:opacity-0 cursor-pointer"
+                  class="absolute left-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/95 text-sm text-[var(--text)] shadow-sm backdrop-blur-sm transition-all hover:border-[var(--text)] disabled:pointer-events-none disabled:opacity-0 cursor-pointer"
                 >
                   ‹
                 </button>
                 <div
                   data-linked-list-bar
-                  class="horizontal-fade-mask no-scrollbar flex items-center overflow-x-auto px-10 py-4 select-none cursor-grab"
+                  class="horizontal-fade-mask no-scrollbar relative flex items-center overflow-x-auto px-10 py-4 select-none cursor-grab"
                 >
-                {chaptersWithCounts.map(({ chapter, publishedCount, totalCount }, chIdx) => {
-                  const hasNotes = publishedCount > 0;
-                  const isFirst = chIdx === 0;
-                  return (
-                    <div class="flex shrink-0 items-center">
-                      {chIdx > 0 && (
-                        <div class="flex items-center px-1.5 text-[var(--text-muted)]" aria-hidden="true">
-                          <span class="h-px w-5 bg-[var(--border)]" />
-                          <span class="-ml-1 text-[10px]">›</span>
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        data-chapter-tab={chapter.id}
-                        data-course-id={course.id}
-                        class:list={[
-                          'group flex items-center gap-2.5 rounded-full border px-3.5 py-2 text-xs transition-all cursor-pointer',
-                          isFirst
-                            ? 'border-[var(--text)] bg-[var(--text)] text-[var(--bg)] shadow-xs'
-                            : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--text)]',
-                        ]}
-                      >
-                        {/* Linked-list node: solid = recorded, hollow = unrecorded */}
-                        <span
-                          title={hasNotes ? `已记入 ${publishedCount} 篇` : '暂未记入'}
+                  {/* Sliding monochrome pill indicator behind the active chapter node */}
+                  <div
+                    data-active-indicator
+                    aria-hidden="true"
+                    class="pointer-events-none absolute left-0 top-1/2 z-0 rounded-full bg-[var(--text)] opacity-0 shadow-sm"
+                    style="transform: translate3d(0, -50%, 0); transition: transform 340ms cubic-bezier(0.22, 1, 0.36, 1), width 340ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease;"
+                  />
+
+                  {chaptersWithCounts.map(({ chapter, publishedCount, totalCount }, chIdx) => {
+                    const hasNotes = publishedCount > 0;
+                    const isFirst = chIdx === 0;
+                    return (
+                      <div class="relative z-10 flex shrink-0 items-center">
+                        {chIdx > 0 && (
+                          <div class="flex items-center px-1.5 text-[var(--text-muted)]" aria-hidden="true">
+                            <span class="h-px w-5 bg-[var(--border)]" />
+                            <span class="-ml-1 text-[10px]">›</span>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          data-chapter-tab={chapter.id}
+                          data-chapter-index={chIdx}
+                          data-course-id={course.id}
+                          data-active={isFirst ? 'true' : 'false'}
+                          aria-pressed={isFirst ? 'true' : 'false'}
                           class:list={[
-                            'inline-block h-2.5 w-2.5 shrink-0 rounded-full border-[1.5px] transition-colors',
-                            hasNotes
-                              ? isFirst
-                                ? 'border-[var(--bg)] bg-[var(--bg)]'
-                                : 'border-[var(--text)] bg-[var(--text)]'
-                              : isFirst
-                                ? 'border-[var(--bg)] bg-transparent'
-                                : 'border-[var(--text-muted)] bg-transparent',
+                            'group flex items-center gap-2.5 rounded-full border px-3.5 py-2 text-xs transition-colors duration-300 ease-out cursor-pointer',
+                            isFirst
+                              ? 'border-[var(--text)] bg-[var(--text)] text-[var(--bg)] shadow-xs'
+                              : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--text)]',
                           ]}
-                        />
-                        <span class="font-mono text-[11px] opacity-75">
-                          {String(chapter.order).padStart(2, '0')}
-                        </span>
-                        <span class="font-editorial font-medium whitespace-nowrap">
-                          {chapter.title}
-                        </span>
-                        <span class="font-mono text-[10px] opacity-70">
-                          {publishedCount}/{totalCount}
-                        </span>
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+                        >
+                          {/* Linked-list node: solid = recorded, hollow = unrecorded */}
+                          <span
+                            title={hasNotes ? `已记入 ${publishedCount} 篇` : '暂未记入'}
+                            class:list={[
+                              'inline-block h-2.5 w-2.5 shrink-0 rounded-full border-[1.5px] transition-colors duration-300',
+                              hasNotes
+                                ? isFirst
+                                  ? 'border-[var(--bg)] bg-[var(--bg)]'
+                                  : 'border-[var(--text)] bg-[var(--text)]'
+                                : isFirst
+                                  ? 'border-[var(--bg)] bg-transparent'
+                                  : 'border-[var(--text-muted)] bg-transparent',
+                            ]}
+                          />
+                          <span class="font-mono text-[11px] opacity-75">
+                            {String(chapter.order).padStart(2, '0')}
+                          </span>
+                          <span class="font-editorial font-medium whitespace-nowrap">
+                            {chapter.title}
+                          </span>
+                          <span class="font-mono text-[10px] opacity-70">
+                            {publishedCount}/{totalCount}
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
                 <button
                   type="button"
                   data-scroll-next
                   aria-label="向右滚动章节"
-                  class="absolute right-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/95 text-sm text-[var(--text)] shadow-sm backdrop-blur-sm transition-all hover:border-[var(--text)] disabled:pointer-events-none disabled:opacity-0 cursor-pointer"
+                  class="absolute right-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]/95 text-sm text-[var(--text)] shadow-sm backdrop-blur-sm transition-all hover:border-[var(--text)] disabled:pointer-events-none disabled:opacity-0 cursor-pointer"
                 >
                   ›
                 </button>
               </div>
 
               {/* Active Chapter Detail Panel on PC */}
-              <div class="mt-3">
+              <div class="mt-3 overflow-hidden">
                 {chaptersWithCounts.map(({ chapter, publishedCount, totalCount }, chIdx) => (
                   <div
                     data-chapter-panel={chapter.id}
+                    data-chapter-index={chIdx}
                     data-course-id={course.id}
                     class:list={[
                       'rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6',
@@ -341,28 +429,110 @@ const stats = index.subjectStats[subjectId];
 
 <script is:inline>
   (() => {
-    // 1. Linked-list chapter tab switching on PC
-    document.querySelectorAll('[data-chapter-tab]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const chapterId = btn.getAttribute('data-chapter-tab');
-        const courseId = btn.getAttribute('data-course-id');
-        if (!chapterId || !courseId) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        const section = document.querySelector(`[data-course-section="${courseId}"]`);
-        if (!section) return;
+    // 1. Animate horizontal gradient course progress bars on viewport entry
+    function animateCourseBar(el) {
+      if (el.getAttribute('data-animated') === 'true') return;
+      el.setAttribute('data-animated', 'true');
 
-        section.querySelectorAll('[data-chapter-tab]').forEach((tab) => {
-          const active = tab.getAttribute('data-chapter-tab') === chapterId;
-          tab.classList.toggle('border-[var(--text)]', active);
-          tab.classList.toggle('bg-[var(--text)]', active);
+      const primaryPct = Number(el.getAttribute('data-primary-width') || '0');
+      const secondaryPct = Number(el.getAttribute('data-secondary-width') || '0');
+      const primaryEl = el.querySelector('[data-bar-primary]');
+      const secondaryEl = el.querySelector('[data-bar-secondary]');
+
+      const applyWidths = () => {
+        if (primaryEl) primaryEl.style.width = `${primaryPct}%`;
+        if (secondaryEl) secondaryEl.style.width = `${secondaryPct}%`;
+      };
+
+      if (reduceMotion) {
+        applyWidths();
+      } else {
+        requestAnimationFrame(() => requestAnimationFrame(applyWidths));
+      }
+    }
+
+    const courseBars = document.querySelectorAll('[data-course-progress]');
+    if (courseBars.length) {
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                animateCourseBar(entry.target);
+                io.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.1 },
+        );
+        courseBars.forEach((bar) => io.observe(bar));
+      } else {
+        courseBars.forEach((bar) => animateCourseBar(bar));
+      }
+    }
+
+    // 2. Smooth linked-list chapter tab switching, sliding indicator, click-to-center & drag/wheel scrolling
+    document.querySelectorAll('[data-course-section]').forEach((section) => {
+      const wrapper = section.querySelector('[data-linked-list-wrapper]');
+      const bar = wrapper?.querySelector('[data-linked-list-bar]');
+      const indicator = bar?.querySelector('[data-active-indicator]');
+      const prevBtn = wrapper?.querySelector('[data-scroll-prev]');
+      const nextBtn = wrapper?.querySelector('[data-scroll-next]');
+      const tabs = Array.from(section.querySelectorAll('[data-chapter-tab]'));
+      const panels = Array.from(section.querySelectorAll('[data-chapter-panel]'));
+
+      if (!bar || !tabs.length) return;
+
+      let activeIndex = 0;
+
+      function positionIndicator(targetTab, instant = false) {
+        if (!indicator || !targetTab) return;
+        const barRect = bar.getBoundingClientRect();
+        const btnRect = targetTab.getBoundingClientRect();
+        if (barRect.width === 0 || btnRect.width === 0) return;
+
+        const left = btnRect.left - barRect.left + bar.scrollLeft;
+        const width = btnRect.width;
+        const height = btnRect.height;
+
+        if (instant || reduceMotion) {
+          const prevTransition = indicator.style.transition;
+          indicator.style.transition = 'none';
+          indicator.style.transform = `translate3d(${left}px, -50%, 0)`;
+          indicator.style.width = `${width}px`;
+          indicator.style.height = `${height}px`;
+          indicator.style.opacity = '1';
+          // Force reflow then restore transition
+          void indicator.offsetWidth;
+          indicator.style.transition = prevTransition;
+        } else {
+          indicator.style.transform = `translate3d(${left}px, -50%, 0)`;
+          indicator.style.width = `${width}px`;
+          indicator.style.height = `${height}px`;
+          indicator.style.opacity = '1';
+        }
+      }
+
+      function styleTabs(activeChapterId, usePillBackdrop) {
+        tabs.forEach((tab) => {
+          const active = tab.getAttribute('data-chapter-tab') === activeChapterId;
+          tab.setAttribute('data-active', String(active));
+          tab.setAttribute('aria-pressed', String(active));
+
+          // When the sliding indicator pill is active, make active button background transparent so the gliding pill shows through
+          tab.classList.toggle('border-transparent', active && usePillBackdrop);
+          tab.classList.toggle('bg-transparent', active && usePillBackdrop);
+          tab.classList.toggle('border-[var(--text)]', active && !usePillBackdrop);
+          tab.classList.toggle('bg-[var(--text)]', active && !usePillBackdrop);
           tab.classList.toggle('text-[var(--bg)]', active);
-          tab.classList.toggle('shadow-xs', active);
+          tab.classList.toggle('shadow-xs', active && !usePillBackdrop);
 
           tab.classList.toggle('border-[var(--border)]', !active);
           tab.classList.toggle('bg-[var(--surface)]', !active);
           tab.classList.toggle('text-[var(--text)]', !active);
 
-          // Update inner linked-list node dot contrast when active
           const dot = tab.querySelector('span[title]');
           if (dot) {
             const hasNotes = !dot.getAttribute('title')?.includes('暂未记入');
@@ -373,22 +543,73 @@ const stats = index.subjectStats[subjectId];
             dot.classList.toggle('border-[var(--text-muted)]', !active && !hasNotes);
           }
         });
+      }
 
-        section.querySelectorAll('[data-chapter-panel]').forEach((panel) => {
-          const active = panel.getAttribute('data-chapter-panel') === chapterId;
-          panel.classList.toggle('hidden', !active);
-          panel.classList.toggle('block', active);
+      function centerTabInBar(targetTab) {
+        const barRect = bar.getBoundingClientRect();
+        const btnRect = targetTab.getBoundingClientRect();
+        if (barRect.width === 0 || btnRect.width === 0) return;
+
+        const targetScrollLeft =
+          bar.scrollLeft + (btnRect.left - barRect.left) - (barRect.width - btnRect.width) / 2;
+        const maxScroll = Math.max(0, bar.scrollWidth - bar.clientWidth);
+        const clamped = Math.max(0, Math.min(maxScroll, targetScrollLeft));
+
+        bar.scrollTo({
+          left: clamped,
+          behavior: reduceMotion ? 'auto' : 'smooth',
+        });
+      }
+
+      // Initialize pill position on first visible render
+      function initIndicator() {
+        const currentTab = tabs[activeIndex];
+        if (!currentTab) return;
+        const barRect = bar.getBoundingClientRect();
+        if (barRect.width > 0) {
+          styleTabs(currentTab.getAttribute('data-chapter-tab') || '', true);
+          positionIndicator(currentTab, true);
+        }
+      }
+
+      initIndicator();
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => {
+          const currentTab = tabs[activeIndex];
+          if (currentTab) positionIndicator(currentTab, true);
+        });
+      }
+
+      tabs.forEach((btn, idx) => {
+        btn.addEventListener('click', () => {
+          const chapterId = btn.getAttribute('data-chapter-tab');
+          if (!chapterId) return;
+
+          const prevIndex = activeIndex;
+          activeIndex = idx;
+
+          styleTabs(chapterId, true);
+          positionIndicator(btn, false);
+          centerTabInBar(btn);
+
+          const enterClass =
+            idx >= prevIndex ? 'animate-chapter-enter-right' : 'animate-chapter-enter-left';
+
+          panels.forEach((panel) => {
+            const active = panel.getAttribute('data-chapter-panel') === chapterId;
+            panel.classList.remove('animate-chapter-enter-right', 'animate-chapter-enter-left');
+            panel.classList.toggle('hidden', !active);
+            panel.classList.toggle('block', active);
+            if (active && idx !== prevIndex && !reduceMotion) {
+              // Trigger CSS keyframe animation cleanly on switch
+              void panel.offsetWidth;
+              panel.classList.add(enterClass);
+            }
+          });
         });
       });
-    });
 
-    // 2. Smooth horizontal drag-to-scroll, arrow buttons & mouse wheel binding on PC linked-list bars
-    document.querySelectorAll('[data-linked-list-wrapper]').forEach((wrapper) => {
-      const bar = wrapper.querySelector('[data-linked-list-bar]');
-      const prevBtn = wrapper.querySelector('[data-scroll-prev]');
-      const nextBtn = wrapper.querySelector('[data-scroll-next]');
-      if (!bar) return;
-
+      // Scroll arrows, wheel-to-horizontal & drag-to-scroll
       let isDown = false;
       let startX = 0;
       let scrollLeft = 0;
@@ -414,7 +635,14 @@ const stats = index.subjectStats[subjectId];
       });
 
       bar.addEventListener('scroll', updateArrows, { passive: true });
-      window.addEventListener('resize', updateArrows, { passive: true });
+      window.addEventListener(
+        'resize',
+        () => {
+          updateArrows();
+          initIndicator();
+        },
+        { passive: true },
+      );
       updateArrows();
 
       bar.addEventListener(
