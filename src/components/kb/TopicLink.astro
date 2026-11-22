@@ -1,0 +1,33 @@
+---
+import { getKnowledgeIndex } from '@/lib/kb-graph';
+
+interface Props {
+  id: string;
+  label?: string;
+}
+
+const { id, label } = Astro.props;
+const index = await getKnowledgeIndex();
+const target = index.topicsById.get(id);
+const display = label ?? target?.title ?? id;
+const isPublished = target?.isPublished ?? false;
+const href = target?.href ?? `/kb/${id}`;
+---
+
+<a
+  href={href}
+  title={
+    target
+      ? `${target.courseShortTitle} · ${target.chapterTitle} (${target.isPublished ? target.status : '待学占位节点'})`
+      : `知识点：${id}`
+  }
+  class:list={[
+    'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.92em] no-underline transition-colors',
+    isPublished
+      ? 'bg-[var(--accent-soft)]/70 font-medium text-[var(--accent)] hover:bg-[var(--accent-soft)]'
+      : 'border border-dashed border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]',
+  ]}
+>
+  <span>{display}</span>
+  {!isPublished && <span class="text-[10px] opacity-75">待学</span>}
+</a>

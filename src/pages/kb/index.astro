@@ -1,0 +1,71 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { SUBJECT_LIST } from '@/data/syllabus';
+import { getKnowledgeIndex } from '@/lib/kb-graph';
+
+const index = await getKnowledgeIndex();
+---
+
+<BaseLayout title="考研知识库">
+  <header class="border-b border-[var(--border)] py-12">
+    <h1 class="font-editorial text-3xl font-semibold text-[var(--text)] sm:text-4xl">
+      考研知识库总览
+    </h1>
+    <p class="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--text-muted)]">
+      按学科分模块组织，每个原子知识点均为独立可插拔内容包，支持跨书、跨学科双向引用与原理交互可视化。
+    </p>
+  </header>
+
+  <section class="grid grid-cols-1 gap-6 py-10">
+    {
+      SUBJECT_LIST.map((subject) => {
+        const stats = index.subjectStats[subject.id];
+        return (
+          <div class="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+            <div class="flex flex-wrap items-baseline justify-between gap-4">
+              <div>
+                <a
+                  href={`/kb/${subject.id}`}
+                  class="font-editorial text-2xl font-semibold text-[var(--text)] hover:text-[var(--accent)] transition-colors"
+                >
+                  {subject.title}
+                </a>
+                <p class="mt-1 text-sm text-[var(--text-muted)]">{subject.description}</p>
+              </div>
+              <div class="text-right font-mono text-xs text-[var(--text-muted)]">
+                <div>
+                  已写入 {stats.published} / {stats.total}
+                </div>
+                <div class="mt-0.5 text-emerald-600 dark:text-emerald-400">
+                  已掌握 {stats.mastered}
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {subject.courses.map((course) => {
+                const cStats = index.courseStats.get(`${subject.id}/${course.id}`);
+                const firstTopic = course.chapters[0]?.sections[0]?.topics[0];
+                const href = firstTopic ? `/kb/${firstTopic.id}` : `/kb/${subject.id}`;
+                return (
+                  <a
+                    href={href}
+                    class="rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)]/70 p-4 hover:border-[var(--accent)] transition-colors"
+                  >
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="font-medium text-sm text-[var(--text)]">{course.title}</span>
+                      <span class="font-mono text-[11px] text-[var(--text-muted)]">
+                        {cStats?.published ?? 0}/{cStats?.total ?? 0}
+                      </span>
+                    </div>
+                    <div class="mt-1 text-xs text-[var(--text-muted)]">{course.scoreShare}</div>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })
+    }
+  </section>
+</BaseLayout>

@@ -1,0 +1,120 @@
+---
+import { SYLLABI, type SubjectId } from '@/data/syllabus';
+import { getKnowledgeIndex } from '@/lib/kb-graph';
+import StudyStatusBadge from './StudyStatusBadge.astro';
+
+interface Props {
+  subjectId: SubjectId;
+  activeCourseId: string;
+  activeTopicId?: string;
+}
+
+const { subjectId, activeCourseId, activeTopicId } = Astro.props;
+const subject = SYLLABI[subjectId];
+const activeCourse =
+  subject.courses.find((c) => c.id === activeCourseId) ?? subject.courses[0];
+const index = await getKnowledgeIndex();
+---
+
+<aside class="space-y-5">
+  <!-- Subject header -->
+  <div>
+    <a
+      href={`/kb/${subject.id}`}
+      class="text-xs font-medium tracking-wider uppercase text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+    >
+      {subject.title}
+    </a>
+  </div>
+
+  <!-- Course switcher pills -->
+  <div class="flex flex-wrap gap-1.5">
+    {
+      subject.courses.map((course) => {
+        const firstTopic = course.chapters[0]?.sections[0]?.topics[0];
+        const href = firstTopic ? `/kb/${firstTopic.id}` : `/kb/${subject.id}`;
+        const isCurrent = course.id === activeCourse.id;
+        return (
+          <a
+            href={href}
+            class:list={[
+              'rounded-lg border px-2.5 py-1 text-xs transition-colors',
+              isCurrent
+                ? 'border-[var(--accent)] bg-[var(--accent-soft)]/60 font-medium text-[var(--accent)]'
+                : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]',
+            ]}
+          >
+            {course.shortTitle}
+          </a>
+        );
+      })
+    }
+  </div>
+
+  <!-- Chapter -> Section -> Topic tree -->
+  <nav aria-label="章节目录" class="space-y-4">
+    {
+      activeCourse.chapters.map((chapter) => {
+        const containsActive = chapter.sections.some((sec) =>
+          sec.topics.some((t) => t.id === activeTopicId),
+        );
+        return (
+          <details open={containsActive || chapter.order <= 2} class="group">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-2 py-1 text-xs font-semibold tracking-wide text-[var(--text)] hover:text-[var(--accent)]">
+              <span>
+                <span class="mr-1.5 font-mono text-[var(--text-muted)]">
+                  {String(chapter.order).padStart(2, '0')}
+                </span>
+                {chapter.title}
+              </span>
+              <span class="text-[10px] text-[var(--text-muted)] transition-transform group-open:rotate-90">
+                ▸
+              </span>
+            </summary>
+
+            <div class="mt-1.5 space-y-2.5 border-l border-[var(--border)] pl-3">
+              {chapter.sections.map((section) => (
+                <div>
+                  <div class="mb-1 text-[11px] font-medium text-[var(--text-muted)]">
+                    {section.title}
+                  </div>
+                  <ul class="space-y-0.5">
+                    {section.topics.map((stub) => {
+                      const resolved = index.topicsById.get(stub.id);
+                      const isCurrent = stub.id === activeTopicId;
+                      const isPublished = resolved?.isPublished ?? false;
+                      const status = resolved?.status ?? '未开始';
+                      return (
+                        <li>
+                          <a
+                            href={`/kb/${stub.id}`}
+                            class:list={[
+                              'flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs leading-snug transition-colors',
+                              isCurrent
+                                ? 'bg-[var(--surface-subtle)] font-medium text-[var(--accent)]'
+                                : isPublished
+                                  ? 'text-[var(--text)] hover:bg-[var(--surface-subtle)]'
+                                  : 'text-[var(--text-muted)]/80 hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]',
+                            ]}
+                          >
+                            <StudyStatusBadge status={status} compact />
+                            <span class="flex-1 truncate">{resolved?.title ?? stub.title}</span>
+                            {stub.viz && (
+                              <span class="shrink-0 rounded bg-[var(--surface-subtle)] px-1 py-0.5 text-[9px] font-mono uppercase text-[var(--text-muted)]">
+                                {stub.viz}
+                              </span>
+                            )}
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </details>
+        );
+      })
+    }
+  </nav>
+</aside>

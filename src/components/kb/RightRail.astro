@@ -1,0 +1,130 @@
+---
+import type { MarkdownHeading } from 'astro';
+import { getKnowledgeIndex, type ResolvedTopic } from '@/lib/kb-graph';
+
+interface Props {
+  topic: ResolvedTopic;
+  headings?: MarkdownHeading[];
+}
+
+const { topic, headings = [] } = Astro.props;
+const index = await getKnowledgeIndex();
+const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+
+const prereqTopics = topic.prerequisites
+  .map((id) => index.topicsById.get(id))
+  .filter((t): t is ResolvedTopic => Boolean(t));
+
+const relatedTopics = topic.related
+  .map((id) => index.topicsById.get(id))
+  .filter((t): t is ResolvedTopic => Boolean(t));
+---
+
+<aside class="space-y-6 text-xs">
+  {
+    tocHeadings.length > 0 && (
+      <div>
+        <h3 class="mb-2.5 font-sans text-[11px] font-semibold tracking-wider uppercase text-[var(--text-muted)]">
+          本页目录
+        </h3>
+        <ul class="space-y-1.5 border-l border-[var(--border)] pl-3">
+          {tocHeadings.map((h) => (
+            <li class={h.depth === 3 ? 'pl-2.5' : ''}>
+              <a
+                href={`#${h.slug}`}
+                class="block leading-snug text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+              >
+                {h.text}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  {
+    prereqTopics.length > 0 && (
+      <div>
+        <h3 class="mb-2 font-sans text-[11px] font-semibold tracking-wider uppercase text-[var(--text-muted)]">
+          前置知识
+        </h3>
+        <ul class="space-y-1.5">
+          {prereqTopics.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                class="flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 hover:border-[var(--accent)] transition-colors"
+              >
+                <span class="truncate text-[var(--text)]">{item.title}</span>
+                <span class="shrink-0 text-[10px] text-[var(--text-muted)]">
+                  {item.courseShortTitle}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  {
+    relatedTopics.length > 0 && (
+      <div>
+        <h3 class="mb-2 font-sans text-[11px] font-semibold tracking-wider uppercase text-[var(--text-muted)]">
+          跨科 / 关联知识点
+        </h3>
+        <ul class="space-y-1.5">
+          {relatedTopics.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                class="flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 hover:border-[var(--accent)] transition-colors"
+              >
+                <span class="truncate text-[var(--text)]">{item.title}</span>
+                <span class="shrink-0 text-[10px] text-[var(--text-muted)]">
+                  {item.courseShortTitle}
+                  {!item.isPublished && ' · 待学'}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  {
+    topic.backlinks.length > 0 && (
+      <div>
+        <h3 class="mb-2 font-sans text-[11px] font-semibold tracking-wider uppercase text-[var(--text-muted)]">
+          反向引用 ({topic.backlinks.length})
+        </h3>
+        <ul class="space-y-1.5">
+          {topic.backlinks.map((bl) => (
+            <li>
+              <a
+                href={bl.href}
+                class="block rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] px-2.5 py-2 hover:border-[var(--accent)] transition-colors"
+              >
+                <div class="truncate font-medium text-[var(--text)]">{bl.title}</div>
+                {bl.meta && (
+                  <div class="mt-0.5 text-[10px] text-[var(--text-muted)]">{bl.meta}</div>
+                )}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  <div class="border-t border-[var(--border)] pt-4">
+    <a
+      href="/graph"
+      class="inline-flex items-center gap-1.5 text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+    >
+      <span>查看全局知识图谱 →</span>
+    </a>
+  </div>
+</aside>

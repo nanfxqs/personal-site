@@ -1,0 +1,54 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { normalizeJournalSlug } from '@/lib/kb-graph';
+
+const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime(),
+);
+---
+
+<BaseLayout title="个人日常">
+  <header class="border-b border-[var(--border)] py-12">
+    <h1 class="font-editorial text-3xl font-semibold text-[var(--text)] sm:text-4xl">
+      个人日常与随笔
+    </h1>
+    <p class="mt-2 text-sm text-[var(--text-muted)]">
+      按时间线记录生活片段、随笔感慨、图像与影音。共 {posts.length} 篇。
+    </p>
+  </header>
+
+  <section class="divide-y divide-[var(--border)] py-8">
+    {
+      posts.map((post) => {
+        const slug = normalizeJournalSlug(post.id);
+        const dateStr = post.data.date.toISOString().slice(0, 10);
+        return (
+          <article class="py-8 first:pt-2">
+            <a href={`/journal/${slug}`} class="group block">
+              <div class="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
+                <time datetime={dateStr} class="font-mono">
+                  {dateStr}
+                </time>
+                {post.data.mood && <span>· {post.data.mood}</span>}
+                {post.data.media.length > 0 && (
+                  <span class="rounded-full bg-[var(--surface-subtle)] px-2 py-0.5 text-[11px]">
+                    含 {post.data.media.length} 个媒体附件
+                  </span>
+                )}
+              </div>
+              <h2 class="mt-2 font-editorial text-2xl font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
+                {post.data.title}
+              </h2>
+              {post.data.summary && (
+                <p class="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--text-muted)]">
+                  {post.data.summary}
+                </p>
+              )}
+            </a>
+          </article>
+        );
+      })
+    }
+  </section>
+</BaseLayout>

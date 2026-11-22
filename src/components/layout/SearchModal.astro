@@ -1,0 +1,126 @@
+---
+---
+<div
+  id="search-modal"
+  class="fixed inset-0 z-50 hidden items-start justify-center bg-black/40 p-4 pt-20 backdrop-blur-xs"
+  role="dialog"
+  aria-modal="true"
+  aria-label="站内搜索"
+>
+  <div
+    class="w-full max-w-xl overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
+  >
+    <div class="flex items-center gap-3 border-b border-[var(--border)] px-4 py-3">
+      <svg
+        class="h-4 w-4 shrink-0 text-[var(--text-muted)]"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.3-4.3" />
+      </svg>
+      <input
+        id="search-input"
+        type="search"
+        placeholder="搜索知识点、408、数学一、英语一或个人日常…"
+        class="w-full bg-transparent text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none"
+      />
+      <kbd
+        class="hidden rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--text-muted)] sm:inline"
+      >
+        ESC
+      </kbd>
+    </div>
+    <div id="search-results" class="max-h-96 overflow-y-auto p-3 text-sm">
+      <p class="px-2 py-6 text-center text-xs text-[var(--text-muted)]">
+        输入关键词开始检索（静态构建后由 Pagefind 提供零后端全文索引）
+      </p>
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+  (() => {
+    const modal = document.getElementById('search-modal');
+    const input = document.getElementById('search-input');
+    const resultsEl = document.getElementById('search-results');
+    if (!modal || !input || !resultsEl) return;
+
+    let pagefind = null;
+
+    async function ensurePagefind() {
+      if (pagefind) return pagefind;
+      try {
+        const modPath = '/pagefind/pagefind.js';
+        pagefind = await import(modPath);
+        await pagefind.init();
+        return pagefind;
+      } catch {
+        return null;
+      }
+    }
+
+    function openModal() {
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      input.focus();
+      ensurePagefind();
+    }
+
+    function closeModal() {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    document.querySelectorAll('[data-open-search]').forEach((btn) => {
+      btn.addEventListener('click', openModal);
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (modal.classList.contains('hidden')) openModal();
+        else closeModal();
+      } else if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+        closeModal();
+      }
+    });
+
+    input.addEventListener('input', async () => {
+      const q = input.value.trim();
+      if (!q) {
+        resultsEl.innerHTML =
+          '<p class="px-2 py-6 text-center text-xs text-[var(--text-muted)]">输入关键词开始检索</p>';
+        return;
+      }
+      const pf = await ensurePagefind();
+      if (!pf) {
+        resultsEl.innerHTML =
+          '<p class="px-2 py-6 text-center text-xs text-[var(--text-muted)]">开发模式下未生成 Pagefind 索引，请运行 <code>npm run build && npm run preview</code> 体验全文搜索。</p>';
+        return;
+      }
+      const search = await pf.search(q);
+      const top = await Promise.all(search.results.slice(0, 8).map((r) => r.data()));
+      if (!top.length) {
+        resultsEl.innerHTML =
+          '<p class="px-2 py-6 text-center text-xs text-[var(--text-muted)]">未找到相关结果</p>';
+        return;
+      }
+      resultsEl.innerHTML = top
+        .map(
+          (item) => `
+          <a href="${item.url}" class="block rounded-xl p-3 hover:bg-[var(--surface-subtle)] transition-colors">
+            <div class="font-medium text-[var(--text)]">${item.meta?.title || item.url}</div>
+            <div class="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">${item.excerpt}</div>
+          </a>`,
+        )
+        .join('');
+    });
+  })();
+</script>

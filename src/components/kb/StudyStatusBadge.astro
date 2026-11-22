@@ -1,0 +1,44 @@
+---
+import type { StudyStatus } from '@/data/syllabus';
+
+interface Props {
+  status: StudyStatus;
+  compact?: boolean;
+}
+
+const { status, compact = false } = Astro.props;
+
+const styles: Record<StudyStatus, string> = {
+  已掌握:
+    'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  学习中:
+    'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  未开始:
+    'border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-muted)]',
+};
+
+const dotStyles: Record<StudyStatus, string> = {
+  已掌握: 'bg-emerald-500',
+  学习中: 'bg-amber-500',
+  未开始: 'bg-stone-300 dark:bg-stone-600',
+};
+---
+
+{
+  compact ? (
+    <span
+      title={`学习状态：${status}`}
+      class:list={['inline-block h-2 w-2 shrink-0 rounded-full', dotStyles[status]]}
+    />
+  ) : (
+    <span
+      class:list={[
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+        styles[status],
+      ]}
+    >
+      <span class:list={['h-1.5 w-1.5 rounded-full', dotStyles[status]]} />
+      {status}
+    </span>
+  )
+}

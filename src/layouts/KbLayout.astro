@@ -1,0 +1,55 @@
+---
+import type { MarkdownHeading } from 'astro';
+import BaseLayout from './BaseLayout.astro';
+import CourseSidebar from '@/components/kb/CourseSidebar.astro';
+import RightRail from '@/components/kb/RightRail.astro';
+import type { ResolvedTopic } from '@/lib/kb-graph';
+
+interface Props {
+  topic: ResolvedTopic;
+  headings?: MarkdownHeading[];
+}
+
+const { topic, headings = [] } = Astro.props;
+---
+
+<BaseLayout title={topic.title} description={topic.summary ?? `${topic.courseTitle} · ${topic.title}`} wide>
+  <div class="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[250px_minmax(0,1fr)_220px] lg:px-8">
+    <!-- Left Rail: Course & Chapter Tree -->
+    <div class="hidden lg:block">
+      <div class="sticky top-22 max-h-[calc(100vh-7rem)] overflow-y-auto pr-2">
+        <CourseSidebar
+          subjectId={topic.subjectId}
+          activeCourseId={topic.courseId}
+          activeTopicId={topic.id}
+        />
+      </div>
+    </div>
+
+    <!-- Mobile collapsible syllabus -->
+    <details class="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:hidden">
+      <summary class="cursor-pointer text-sm font-medium text-[var(--text)]">
+        展开目录 · {topic.courseTitle}
+      </summary>
+      <div class="mt-4">
+        <CourseSidebar
+          subjectId={topic.subjectId}
+          activeCourseId={topic.courseId}
+          activeTopicId={topic.id}
+        />
+      </div>
+    </details>
+
+    <!-- Main Reading & Interactive Canvas -->
+    <article data-pagefind-body class="min-w-0">
+      <slot />
+    </article>
+
+    <!-- Right Rail: TOC & Cross-References -->
+    <div class="hidden lg:block">
+      <div class="sticky top-22 max-h-[calc(100vh-7rem)] overflow-y-auto pl-2">
+        <RightRail topic={topic} headings={headings} />
+      </div>
+    </div>
+  </div>
+</BaseLayout>

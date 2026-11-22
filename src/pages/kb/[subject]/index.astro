@@ -1,0 +1,156 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import StudyStatusBadge from '@/components/kb/StudyStatusBadge.astro';
+import { SUBJECT_LIST, SYLLABI, type SubjectId } from '@/data/syllabus';
+import { getKnowledgeIndex } from '@/lib/kb-graph';
+
+export function getStaticPaths() {
+  return SUBJECT_LIST.map((subject) => ({
+    params: { subject: subject.id },
+  }));
+}
+
+const subjectId = Astro.params.subject as SubjectId;
+const subject = SYLLABI[subjectId];
+const index = await getKnowledgeIndex();
+const stats = index.subjectStats[subjectId];
+---
+
+<BaseLayout title={subject.title} description={subject.description}>
+  <header class="border-b border-[var(--border)] py-12">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <div class="text-xs font-mono uppercase tracking-wider text-[var(--accent)]">
+          Subject · {subject.code}
+        </div>
+        <h1 class="mt-2 font-editorial text-3xl font-semibold text-[var(--text)] sm:text-4xl">
+          {subject.title}
+        </h1>
+        <p class="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--text-muted)]">
+          {subject.description}
+        </p>
+      </div>
+
+      <div class="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3 text-right">
+        <div class="font-mono text-2xl font-semibold text-[var(--text)]">
+          {stats.published}
+          <span class="text-sm font-normal text-[var(--text-muted)]"> / {stats.total}</span>
+        </div>
+        <div class="text-xs text-[var(--text-muted)]">
+          已掌握 {stats.mastered} · 学习中 {stats.inProgress}
+        </div>
+      </div>
+    </div>
+
+    <!-- Course quick anchor links -->
+    <div class="mt-6 flex flex-wrap gap-2">
+      {
+        subject.courses.map((course) => (
+          <a
+            href={`#course-${course.id}`}
+            class="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+          >
+            {course.title} · {course.scoreShare}
+          </a>
+        ))
+      }
+    </div>
+  </header>
+
+  <div class="space-y-14 py-10">
+    {
+      subject.courses.map((course) => {
+        const cStats = index.courseStats.get(`${subject.id}/${course.id}`);
+        return (
+          <section id={`course-${course.id}`} class="scroll-mt-24">
+            <div class="mb-6 flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--border)] pb-3">
+              <div>
+                <h2 class="font-editorial text-2xl font-semibold text-[var(--text)]">
+                  {course.title}
+                </h2>
+                <p class="mt-1 text-xs text-[var(--text-muted)]">
+                  {course.scoreShare} · {course.description}
+                </p>
+              </div>
+              <span class="font-mono text-xs text-[var(--text-muted)]">
+                已写入 {cStats?.published ?? 0} / {cStats?.total ?? 0}
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {course.chapters.map((chapter) => (
+                <div class="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                  <div class="flex items-baseline justify-between gap-2">
+                    <h3 class="font-editorial text-base font-semibold text-[var(--text)]">
+                      <span class="mr-1.5 font-mono text-xs text-[var(--accent)]">
+                        {String(chapter.order).padStart(2, '0')}
+                      </span>
+                      {chapter.title}
+                    </h3>
+                    {chapter.textbookRef && (
+                      <span class="shrink-0 text-[11px] text-[var(--text-muted)]">
+                        {chapter.textbookRef}
+                      </span>
+                    )}
+                  </div>
+
+                  <div class="mt-3 space-y-3">
+                    {chapter.sections.map((section) => (
+                      <div>
+                        <div class="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                          {section.title}
+                        </div>
+                        <ul class="space-y-1">
+                          {section.topics.map((stub) => {
+                            const resolved = index.topicsById.get(stub.id);
+                            const isPublished = resolved?.isPublished ?? false;
+                            const status = resolved?.status ?? '未开始';
+                            return (
+                              <li>
+                                <a
+                                  href={`/kb/${stub.id}`}
+                                  class:list={[
+                                    'flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-colors',
+                                    isPublished
+                                      ? 'bg-[var(--surface-subtle)]/60 font-medium text-[var(--text)] hover:text-[var(--accent)]'
+                                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]',
+                                  ]}
+                                >
+                                  <span class="flex items-center gap-2 min-w-0">
+                                    <StudyStatusBadge status={status} compact />
+                                    <span class="truncate">{resolved?.title ?? stub.title}</span>
+                                  </span>
+                                  <span class="flex shrink-0 items-center gap-1.5">
+                                    {stub.math1Only && (
+                                      <span class="rounded bg-[var(--accent-soft)] px-1 py-0.5 text-[9px] text-[var(--accent)]">
+                                        数一
+                                      </span>
+                                    )}
+                                    {stub.viz && (
+                                      <span class="rounded border border-[var(--border)] px-1 py-0.5 font-mono text-[9px] uppercase text-[var(--text-muted)]">
+                                        {stub.viz}
+                                      </span>
+                                    )}
+                                    {stub.weight && (
+                                      <span class="text-[10px] text-amber-600/80 dark:text-amber-400/80">
+                                        {stub.weight}
+                                      </span>
+                                    )}
+                                  </span>
+                                </a>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })
+    }
+  </div>
+</BaseLayout>

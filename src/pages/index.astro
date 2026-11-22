@@ -1,0 +1,142 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { SITE } from '@/config/site';
+import { SUBJECT_LIST } from '@/data/syllabus';
+import { getKnowledgeIndex, normalizeJournalSlug } from '@/lib/kb-graph';
+
+const index = await getKnowledgeIndex();
+const posts = (await getCollection('journal', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime(),
+);
+---
+
+<BaseLayout>
+  <!-- Editorial Personal Profile Header -->
+  <section class="border-b border-[var(--border)] py-12 sm:py-16">
+    <div class="max-w-2xl space-y-4">
+      <div class="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--text-muted)]">
+        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+        <span>{SITE.status}</span>
+      </div>
+      <h1 class="font-editorial text-4xl font-semibold tracking-tight text-[var(--text)] sm:text-5xl">
+        你好，我是 <span class="italic text-[var(--accent)]">{SITE.nickname}</span>
+      </h1>
+      <p class="text-base leading-relaxed text-[var(--text-muted)] sm:text-lg">
+        {SITE.bio}
+      </p>
+    </div>
+
+    <!-- Compact Study Progress & Quick Subject Entry -->
+    <div class="mt-10 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h2 class="font-editorial text-base font-semibold text-[var(--text)]">
+            考研知识库进度
+          </h2>
+          <p class="mt-0.5 text-xs text-[var(--text-muted)]">
+            已沉淀 {index.overallStats.published} / {index.overallStats.total} 个核心知识点 · 已掌握 {index.overallStats.mastered} 个
+          </p>
+        </div>
+        <a
+          href="/graph"
+          class="text-xs font-medium text-[var(--accent)] hover:underline"
+        >
+          打开跨科知识图谱 →
+        </a>
+      </div>
+
+      <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {
+          SUBJECT_LIST.map((subject) => {
+            const stats = index.subjectStats[subject.id];
+            return (
+              <a
+                href={`/kb/${subject.id}`}
+                class="group rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)]/70 p-4 hover:border-[var(--accent)] transition-colors"
+              >
+                <div class="flex items-center justify-between gap-2">
+                  <span class="font-editorial text-sm font-semibold text-[var(--text)] group-hover:text-[var(--accent)]">
+                    {subject.title}
+                  </span>
+                  <span class="font-mono text-xs text-[var(--text-muted)]">
+                    {stats.published}/{stats.total}
+                  </span>
+                </div>
+                <div class="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
+                  <div
+                    class="h-full rounded-full bg-[var(--accent)] transition-all"
+                    style={`width: ${Math.max(stats.percent, stats.published > 0 ? 4 : 0)}%`}
+                  />
+                </div>
+                <div class="mt-2 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+                  <span>{subject.courses.map((c) => c.shortTitle).join(' · ')}</span>
+                  <span>进入 →</span>
+                </div>
+              </a>
+            );
+          })
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Primary Feed: Personal Journal Timeline -->
+  <section class="py-12">
+    <div class="mb-8 flex items-baseline justify-between">
+      <div>
+        <h2 class="font-editorial text-2xl font-semibold text-[var(--text)]">
+          个人日常与随笔
+        </h2>
+        <p class="mt-1 text-sm text-[var(--text-muted)]">
+          生活片段、牢骚感慨、图像与影音记录
+        </p>
+      </div>
+      <a
+        href="/journal"
+        class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+      >
+        查看全部 ({posts.length}) →
+      </a>
+    </div>
+
+    <div class="divide-y divide-[var(--border)]">
+      {
+        posts.slice(0, 8).map((post) => {
+          const slug = normalizeJournalSlug(post.id);
+          const dateStr = post.data.date.toISOString().slice(0, 10);
+          return (
+            <article class="py-7 first:pt-0">
+              <a href={`/journal/${slug}`} class="group block">
+                <div class="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
+                  <time datetime={dateStr} class="font-mono">
+                    {dateStr}
+                  </time>
+                  {post.data.mood && (
+                    <>
+                      <span>·</span>
+                      <span>{post.data.mood}</span>
+                    </>
+                  )}
+                  {post.data.tags.map((tag) => (
+                    <span class="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[11px]">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+                <h3 class="mt-2 font-editorial text-xl font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
+                  {post.data.title}
+                </h3>
+                {post.data.summary && (
+                  <p class="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--text-muted)]">
+                    {post.data.summary}
+                  </p>
+                )}
+              </a>
+            </article>
+          );
+        })
+      }
+    </div>
+  </section>
+</BaseLayout>
