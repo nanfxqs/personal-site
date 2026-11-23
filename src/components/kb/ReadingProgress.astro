@@ -5,7 +5,7 @@
   type="button"
   aria-label="阅读进度（可拖拽移动，点击返回顶部）"
   title="可拖拽移动位置 · 点击返回顶部"
-  class="glass-surface-strong fixed right-6 bottom-6 z-40 flex h-14 w-14 touch-none select-none items-center justify-center rounded-full transition-[border-color,box-shadow] duration-200 hover:border-[var(--specular-border)] cursor-grab active:cursor-grabbing"
+  class="glass-surface-strong fixed bottom-6 z-40 flex h-14 w-14 touch-none select-none items-center justify-center rounded-full transition-[border-color,box-shadow] duration-200 hover:border-[var(--specular-border)] cursor-grab active:cursor-grabbing"
 >
   <svg class="h-14 w-14 -rotate-90 pointer-events-none" viewBox="0 0 56 56" aria-hidden="true">
     <defs>
@@ -47,14 +47,37 @@
   </div>
 </button>
 
+<style>
+  #reading-progress-btn {
+    right: clamp(
+      12px,
+      calc(var(--reading-progress-right, 24px) + var(--reading-progress-drag-x, 0px)),
+      max(12px, calc(100% - 3.5rem - 12px))
+    );
+  }
+</style>
+
 <script is:inline>
   (() => {
     const btn = document.getElementById('reading-progress-btn');
     const arc = document.getElementById('reading-progress-arc');
     const label = document.getElementById('reading-progress-text');
+    const anchor = document.querySelector('[data-reading-progress-anchor]');
     if (!btn || !arc || !label) return;
 
     const circumference = 2 * Math.PI * 22;
+
+    function updateAnchor() {
+      if (!anchor) return;
+      const right = document.documentElement.clientWidth - anchor.getBoundingClientRect().right + 12;
+      btn.style.setProperty('--reading-progress-right', `${right}px`);
+    }
+
+    if (anchor) {
+      new ResizeObserver(updateAnchor).observe(anchor);
+      window.addEventListener('resize', updateAnchor, { passive: true });
+      updateAnchor();
+    }
 
     function updateProgress() {
       const doc = document.documentElement;
@@ -70,7 +93,7 @@
     updateProgress();
 
     // Pointer-based drag + click-to-top discrimination
-    let dragging = false;
+    let dragPointerId = null;
     let moved = false;
     let startX = 0;
     let startY = 0;
@@ -78,8 +101,8 @@
     let origTop = 0;
 
     btn.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0 && e.pointerType === 'mouse') return;
-      dragging = true;
+      if (e.button !== 0 || dragPointerId !== null) return;
+      dragPointerId = e.pointerId;
       moved = false;
       const rect = btn.getBoundingClientRect();
       startX = e.clientX;
@@ -90,33 +113,33 @@
     });
 
     btn.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
+      if (e.pointerId !== dragPointerId) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
       if (Math.hypot(dx, dy) > 5) moved = true;
       if (!moved) return;
 
       const margin = 12;
-      const maxLeft = window.innerWidth - btn.offsetWidth - margin;
+      const viewportWidth = document.documentElement.clientWidth;
+      const maxLeft = viewportWidth - btn.offsetWidth - margin;
       const maxTop = window.innerHeight - btn.offsetHeight - margin;
       const nextLeft = Math.min(maxLeft, Math.max(margin, origLeft + dx));
       const nextTop = Math.min(maxTop, Math.max(margin, origTop + dy));
 
-      btn.style.right = 'auto';
+      const anchorRight = Number.parseFloat(btn.style.getPropertyValue('--reading-progress-right')) || 24;
+      btn.style.setProperty('--reading-progress-drag-x', `${viewportWidth - btn.offsetWidth - nextLeft - anchorRight}px`);
       btn.style.bottom = 'auto';
-      btn.style.left = `${nextLeft}px`;
       btn.style.top = `${nextTop}px`;
     });
 
-    btn.addEventListener('pointerup', (e) => {
-      if (!dragging) return;
-      dragging = false;
-      if (btn.hasPointerCapture(e.pointerId)) {
-        btn.releasePointerCapture(e.pointerId);
-      }
-      if (!moved) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+    btn.addEventListener('lostpointercapture', (e) => {
+      if (e.pointerId === dragPointerId) dragPointerId = null;
+    });
+
+    btn.addEventListener('click', (e) => {
+      if (moved && e.detail > 0) return;
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reducedMotion ? 'instant' : 'smooth' });
     });
   })();
 </script>
