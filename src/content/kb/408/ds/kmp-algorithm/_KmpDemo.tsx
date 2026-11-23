@@ -69,7 +69,12 @@ export default function KmpDemo() {
       caption="点击下方播放器逐步观察失配时 j = next[j] 的跳转过程，以及主串指针 i 始终不回溯的特性。"
       onReset={() => setStep(0)}
     >
-      <div className="space-y-5 overflow-x-auto">
+      <div
+        role="region"
+        aria-label="KMP 主串与模式串"
+        tabIndex={0}
+        className="space-y-5 overflow-x-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+      >
         {/* Main text row */}
         <div>
           <div className="mb-1.5 flex items-center justify-between text-xs text-[var(--text-muted)]">
@@ -95,7 +100,7 @@ export default function KmpDemo() {
                   ].join(' ')}
                 >
                   <span>{ch}</span>
-                  <span className="text-[9px] opacity-60">{idx}</span>
+                  <span className="text-[9px]">{idx}</span>
                 </div>
               );
             })}
@@ -127,7 +132,7 @@ export default function KmpDemo() {
                   ].join(' ')}
                 >
                   <span>{ch}</span>
-                  <span className="text-[9px] opacity-60">{NEXT[idx]}</span>
+                  <span className="text-[9px]">{NEXT[idx]}</span>
                 </div>
               );
             })}
