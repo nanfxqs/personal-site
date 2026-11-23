@@ -21,7 +21,6 @@ const topic = index.topicsById.get(topicId)!;
 const rendered = topic.entry ? await render(topic.entry) : null;
 const Content = rendered?.Content;
 const headings = rendered?.headings ?? [];
-const sources = topic.entry?.data.sources ?? [];
 const tags = topic.entry?.data.tags ?? [];
 const updatedAt = topic.entry?.data.updatedAt;
 ---
@@ -106,37 +105,6 @@ const updatedAt = topic.entry?.data.updatedAt;
             </span>
           </div>
         )}
-      </section>
-    )
-  }
-
-  <!-- Reference Sources -->
-  {
-    sources.length > 0 && (
-      <section class="mt-12 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-xs">
-        <h2 class="font-editorial text-base font-semibold text-foreground">
-          参考源 (Reference Sources)
-        </h2>
-        <ul class="mt-3 space-y-2 text-sm">
-          {sources.map((src) => (
-            <li class="flex flex-wrap items-baseline gap-2 text-[var(--text-muted)]">
-              <span class="text-[var(--accent)]">•</span>
-              {src.url ? (
-                <a
-                  href={src.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  class="font-medium text-[var(--text)] underline decoration-[var(--border)] underline-offset-4 hover:text-[var(--accent)]"
-                >
-                  {src.title}
-                </a>
-              ) : (
-                <span class="font-medium text-[var(--text)]">{src.title}</span>
-              )}
-              {src.note && <span class="text-xs">— {src.note}</span>}
-            </li>
-          ))}
-        </ul>
       </section>
     )
   }

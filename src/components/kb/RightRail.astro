@@ -2,7 +2,6 @@
 import type { MarkdownHeading } from 'astro';
 import { getKnowledgeIndex, type ResolvedTopic } from '@/lib/kb-graph';
 import { badgeVariants } from '@/components/ui/badge';
-import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -21,6 +20,13 @@ const prereqTopics = topic.prerequisites
 const relatedTopics = topic.related
   .map((id) => index.topicsById.get(id))
   .filter((t): t is ResolvedTopic => Boolean(t));
+
+const sources = topic.entry?.data.sources ?? [];
+const hasSectionsAbove =
+  tocHeadings.length > 0 ||
+  prereqTopics.length > 0 ||
+  relatedTopics.length > 0 ||
+  topic.backlinks.length > 0;
 ---
 
 <div class="space-y-6 text-xs">
@@ -127,13 +133,34 @@ const relatedTopics = topic.related
     )
   }
 
-  <div class="border-t border-border pt-4">
-    <a
-      href="/graph"
-      class={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'w-full justify-between rounded-xl')}
-    >
-      <span>查看全局知识图谱</span>
-      <span aria-hidden="true">→</span>
-    </a>
-  </div>
+  {
+    sources.length > 0 && (
+      <div class={cn(hasSectionsAbove && 'border-t border-border pt-4')}>
+        <h3 class="mb-2.5 font-sans text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+          参考源 (Reference Sources)
+        </h3>
+        <ul class="space-y-1.5">
+          {sources.map((src) => (
+            <li class="rounded-xl border border-border bg-card px-3 py-2">
+              {src.url ? (
+                <a
+                  href={src.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  class="block font-medium leading-snug text-foreground underline decoration-border underline-offset-4 hover:text-primary transition-colors"
+                >
+                  {src.title}
+                </a>
+              ) : (
+                <div class="font-medium leading-snug text-foreground">{src.title}</div>
+              )}
+              {src.note && (
+                <div class="mt-1 text-[11px] leading-snug text-muted-foreground">{src.note}</div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
 </div>
