@@ -20,7 +20,7 @@ const { topic, headings = [] } = Astro.props;
   <div class="mx-auto max-w-[1440px] px-4 pt-4 pb-16 sm:px-6 lg:px-8">
     <!-- Floating Sticky Directory Toggle Controls (always accessible while scrolling) -->
     <div
-      class="pointer-events-none sticky top-[6.25rem] z-30 mb-5 flex items-center justify-between gap-2 md:top-[4.5rem]"
+      class="pointer-events-none sticky top-[4.5rem] z-30 mb-5 flex items-center justify-between gap-2"
     >
       <button
         type="button"
@@ -82,11 +82,9 @@ const { topic, headings = [] } = Astro.props;
     </div>
 
     <!-- Mobile Floating Left Drawer (< lg) -->
-    <div
+    <dialog
       id="mobile-left-drawer"
-      class="fixed inset-0 z-50 hidden lg:hidden"
-      role="dialog"
-      aria-modal="true"
+      class="kb-mobile-drawer lg:hidden"
       aria-label="章节目录"
     >
       <div
@@ -94,9 +92,9 @@ const { topic, headings = [] } = Astro.props;
         class="absolute inset-0 bg-black/35 backdrop-blur-xs"
       ></div>
       <div
-        class="relative z-10 flex h-full w-[min(84vw,20rem)] flex-col border-r border-[var(--border)] bg-[var(--bg)] shadow-2xl"
+        class="relative z-10 flex h-full min-h-0 w-[min(84vw,20rem)] flex-col border-r border-[var(--border)] bg-[var(--bg)] shadow-2xl"
       >
-        <div class="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
+        <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
           <span class="text-xs font-semibold tracking-wider text-[var(--text)]">
             章节目录 · {topic.courseShortTitle}
           </span>
@@ -109,7 +107,7 @@ const { topic, headings = [] } = Astro.props;
             ✕
           </button>
         </div>
-        <div class="flex-1 overflow-y-auto p-4">
+        <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
           <CourseSidebar
             subjectId={topic.subjectId}
             activeCourseId={topic.courseId}
@@ -117,14 +115,12 @@ const { topic, headings = [] } = Astro.props;
           />
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Mobile Floating Right Drawer (< lg) -->
-    <div
+    <dialog
       id="mobile-right-drawer"
-      class="fixed inset-0 z-50 hidden lg:hidden"
-      role="dialog"
-      aria-modal="true"
+      class="kb-mobile-drawer lg:hidden"
       aria-label="本页目录与关联"
     >
       <div
@@ -132,9 +128,9 @@ const { topic, headings = [] } = Astro.props;
         class="absolute inset-0 bg-black/35 backdrop-blur-xs"
       ></div>
       <div
-        class="relative z-10 ml-auto flex h-full w-[min(84vw,20rem)] flex-col border-l border-[var(--border)] bg-[var(--bg)] shadow-2xl"
+        class="relative z-10 ml-auto flex h-full min-h-0 w-[min(84vw,20rem)] flex-col border-l border-[var(--border)] bg-[var(--bg)] shadow-2xl"
       >
-        <div class="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
+        <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
           <span class="text-xs font-semibold tracking-wider text-[var(--text)]">
             本页目录与关联
           </span>
@@ -147,17 +143,18 @@ const { topic, headings = [] } = Astro.props;
             ✕
           </button>
         </div>
-        <div class="flex-1 overflow-y-auto p-4">
+        <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
           <RightRail topic={topic} headings={headings} />
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Push Sidebar + Smooth Layout Transition Workbench -->
     <div class="flex items-start">
       <!-- Left Sticky Push Sidebar (Independent Scroll, clears floating toggle pill) -->
       <aside
         id="push-left-sidebar"
+        aria-label="学科章节"
         class="hidden lg:block shrink-0 sticky top-[7.5rem] h-[calc(100vh-8.5rem)] w-64 mr-8 opacity-100 overflow-y-auto overflow-x-hidden pr-3 border-r border-border transition-[width,margin,opacity,padding] duration-250 ease-[var(--ease-out)]"
       >
         <div class="w-60 pb-6">
@@ -182,6 +179,7 @@ const { topic, headings = [] } = Astro.props;
       <!-- Right Collapsible Push Sidebar: TOC & Cross-References -->
       <aside
         id="push-right-sidebar"
+        aria-label="本页目录与关联"
         class="hidden lg:block shrink-0 sticky top-[7.5rem] h-[calc(100vh-8.5rem)] w-60 ml-8 opacity-100 overflow-y-auto overflow-x-hidden pl-3 border-l border-border transition-[width,margin,opacity,padding] duration-250 ease-[var(--ease-out)]"
       >
         <div class="w-56 pb-6">
@@ -194,6 +192,29 @@ const { topic, headings = [] } = Astro.props;
   <!-- Draggable Corner Monochrome Circular Reading Progress -->
   <ReadingProgress />
 </BaseLayout>
+
+<style>
+  .kb-mobile-drawer {
+    --drawer-top: calc(3.75rem + 1px);
+    position: fixed;
+    inset: var(--drawer-top) 0 auto;
+    width: 100%;
+    max-width: none;
+    height: calc(100dvh - var(--drawer-top));
+    max-height: none;
+    margin: 0;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .kb-mobile-drawer::backdrop {
+    background: transparent;
+  }
+
+  :global(html:has(.kb-mobile-drawer[open])) {
+    overflow: hidden;
+  }
+</style>
 
 <script is:inline>
   (() => {
@@ -208,13 +229,12 @@ const { topic, headings = [] } = Astro.props;
     const desktopMedia = window.matchMedia('(min-width: 1024px)');
     let desktopLeftOpen = true;
     let desktopRightOpen = true;
-    let mobileLeftOpen = false;
-    let mobileRightOpen = false;
 
     function syncDesktopLeft() {
       if (!leftAside || !leftBtn) return;
       leftBtn.setAttribute('aria-expanded', String(desktopLeftOpen));
-      leftBtn.classList.toggle('opacity-80', !desktopLeftOpen);
+      leftAside.inert = !desktopLeftOpen;
+      leftBtn.classList.toggle('opacity-90', !desktopLeftOpen);
 
       leftAside.classList.toggle('w-64', desktopLeftOpen);
       leftAside.classList.toggle('mr-8', desktopLeftOpen);
@@ -232,7 +252,8 @@ const { topic, headings = [] } = Astro.props;
     function syncDesktopRight() {
       if (!rightAside || !rightBtn) return;
       rightBtn.setAttribute('aria-expanded', String(desktopRightOpen));
-      rightBtn.classList.toggle('opacity-80', !desktopRightOpen);
+      rightAside.inert = !desktopRightOpen;
+      rightBtn.classList.toggle('opacity-90', !desktopRightOpen);
 
       rightAside.classList.toggle('w-60', desktopRightOpen);
       rightAside.classList.toggle('ml-8', desktopRightOpen);
@@ -248,28 +269,35 @@ const { topic, headings = [] } = Astro.props;
     }
 
     function setMobileDrawer(side, open) {
-      if (side === 'left') {
-        mobileLeftOpen = open;
-        if (open) mobileRightOpen = false;
-      } else {
-        mobileRightOpen = open;
-        if (open) mobileLeftOpen = false;
+      const drawer = side === 'left' ? leftDrawer : rightDrawer;
+      const otherDrawer = side === 'left' ? rightDrawer : leftDrawer;
+      if (open && !desktopMedia.matches && drawer && !drawer.open) {
+        otherDrawer?.close();
+        drawer.showModal();
+      } else if (!open && drawer?.open) {
+        drawer.close();
       }
-      leftDrawer?.classList.toggle('hidden', !mobileLeftOpen);
-      rightDrawer?.classList.toggle('hidden', !mobileRightOpen);
-      if (!desktopMedia.matches) {
-        leftBtn?.setAttribute('aria-expanded', String(mobileLeftOpen));
-        rightBtn?.setAttribute('aria-expanded', String(mobileRightOpen));
-      }
-      document.body.style.overflow = mobileLeftOpen || mobileRightOpen ? 'hidden' : '';
+      syncMobileControls();
     }
+
+    function syncMobileControls() {
+      if (desktopMedia.matches) return;
+      leftBtn?.setAttribute('aria-controls', 'mobile-left-drawer');
+      rightBtn?.setAttribute('aria-controls', 'mobile-right-drawer');
+      leftBtn?.setAttribute('aria-expanded', String(Boolean(leftDrawer?.open)));
+      rightBtn?.setAttribute('aria-expanded', String(Boolean(rightDrawer?.open)));
+    }
+
+    leftDrawer?.addEventListener('close', syncMobileControls);
+    rightDrawer?.addEventListener('close', syncMobileControls);
+    syncMobileControls();
 
     leftBtn?.addEventListener('click', () => {
       if (desktopMedia.matches) {
         desktopLeftOpen = !desktopLeftOpen;
         syncDesktopLeft();
       } else {
-        setMobileDrawer('left', !mobileLeftOpen);
+        setMobileDrawer('left', !leftDrawer?.open);
       }
     });
 
@@ -278,7 +306,7 @@ const { topic, headings = [] } = Astro.props;
         desktopRightOpen = !desktopRightOpen;
         syncDesktopRight();
       } else {
-        setMobileDrawer('right', !mobileRightOpen);
+        setMobileDrawer('right', !rightDrawer?.open);
       }
     });
 
@@ -296,22 +324,16 @@ const { topic, headings = [] } = Astro.props;
       anchor.addEventListener('click', () => setMobileDrawer('right', false));
     });
 
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && (mobileLeftOpen || mobileRightOpen)) {
-        setMobileDrawer('left', false);
-        setMobileDrawer('right', false);
-      }
-    });
-
     desktopMedia.addEventListener('change', (e) => {
       if (e.matches) {
         setMobileDrawer('left', false);
         setMobileDrawer('right', false);
+        leftBtn?.setAttribute('aria-controls', 'push-left-sidebar');
+        rightBtn?.setAttribute('aria-controls', 'push-right-sidebar');
         syncDesktopLeft();
         syncDesktopRight();
       } else {
-        leftBtn?.setAttribute('aria-expanded', String(mobileLeftOpen));
-        rightBtn?.setAttribute('aria-expanded', String(mobileRightOpen));
+        syncMobileControls();
       }
     });
   })();
