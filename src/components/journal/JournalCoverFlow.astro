@@ -1,0 +1,389 @@
+---
+import { ArrowDownRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+interface Props {
+  entries: {
+    href: string;
+    title: string;
+    date: string;
+    cover?: string;
+  }[];
+}
+
+const { entries } = Astro.props;
+const arrowClass = cn(buttonVariants({ variant: 'outline', size: 'icon' }), 'size-11 rounded-full');
+---
+
+<section id="journal-cover-flow" hidden aria-label="立体浏览" class="mx-auto max-w-[100rem] px-3 sm:px-6">
+  <div data-cover-stage class="cover-stage" role="region" aria-label="文章封面，使用左右方向键浏览" tabindex="0">
+    <div class="cover-scene">
+      {entries.map((entry, index) => {
+        const photo = entry.cover ?? `/journal-covers/${index % 6}.webp`;
+        return (
+          <div data-cover-plane class="cover-plane" style={`--ink: ${29 + (index * 91) % 350}`}>
+            <a class="cover-card" href={entry.href} aria-label={entry.title} tabindex="-1" draggable="false">
+              <img src={photo} alt="" draggable="false" decoding="async" />
+              <span class="cover-print font-editorial" aria-hidden="true">{entry.title}</span>
+            </a>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+  <div class="cover-toolbar">
+    <div class="min-w-0">
+      <p data-cover-date class="font-mono text-xs text-muted-foreground">{entries[0].date}</p>
+      <a data-cover-link href={entries[0].href} class="cover-link font-editorial">
+        <span>{entries[0].title}</span>
+        <ArrowDownRight size={17} aria-hidden="true" />
+      </a>
+    </div>
+    <div class="flex shrink-0 items-center gap-2 sm:gap-3">
+      <button type="button" data-cover-prev class={arrowClass} aria-label="浏览上一封面" disabled={entries.length < 2}>
+        <ChevronLeft size={17} aria-hidden="true" />
+      </button>
+      <span data-cover-count class="min-w-12 text-center font-mono text-xs tabular-nums text-muted-foreground">1 / {entries.length}</span>
+      <button type="button" data-cover-next class={arrowClass} aria-label="浏览下一封面" disabled={entries.length < 2}>
+        <ChevronRight size={17} aria-hidden="true" />
+      </button>
+    </div>
+  </div>
+  <script type="application/json" data-cover-entries set:html={JSON.stringify(entries).replaceAll('<', '\\u003c')} />
+</section>
+
+<style>
+  .cover-stage {
+    position: relative;
+    isolation: isolate;
+    overflow: clip;
+    height: clamp(22rem, 90vw, 32rem);
+    touch-action: pan-y pinch-zoom;
+    background: radial-gradient(ellipse at 70% 40%, var(--card), transparent 68%);
+  }
+
+  .cover-stage:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+  }
+
+  .cover-scene {
+    position: absolute;
+    inset: 0;
+    perspective: 1050px;
+    perspective-origin: 48% 54%;
+  }
+
+  .cover-plane {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: none;
+    transform-style: preserve-3d;
+  }
+
+  .cover-plane[data-visible] { display: block; }
+
+  .cover-card {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    color: oklch(97% 0.018 var(--ink));
+    border-radius: 0.65rem;
+  }
+
+  .cover-stage :global(.journal-ribbon-canvas) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .cover-stage[data-mesh] .cover-card img { visibility: hidden; }
+  .cover-stage[data-mesh] .cover-print {
+    background: none;
+    text-shadow: 0 1px 5px oklch(12% 0.02 var(--ink) / 95%);
+  }
+
+  .cover-card:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 3px;
+  }
+
+  .cover-card img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .cover-print {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: end;
+    width: 100%;
+    height: 100%;
+    padding: 6%;
+    border-radius: inherit;
+    background: linear-gradient(transparent 65%, oklch(12% 0.02 var(--ink) / 76%));
+    font-size: clamp(1rem, 2.1vw, 1.7rem);
+    font-weight: 700;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+    pointer-events: none;
+  }
+
+  .cover-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: clamp(0.4rem, 2vw, 0.8rem);
+    border-top: 1px solid var(--border);
+    padding: 0.9rem 0.4rem 1.25rem;
+  }
+
+  .cover-link {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 100%;
+    color: var(--foreground);
+    font-size: clamp(1rem, 2vw, 1.4rem);
+    font-weight: 650;
+  }
+
+  .cover-link:is(:hover, :focus-visible) { text-decoration: underline; }
+  .cover-link span, [data-cover-date] {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cover-link svg { flex: none; }
+  .cover-stage[data-dragging] { user-select: none; }
+
+  @media (min-width: 48rem) {
+    .cover-stage { height: clamp(26rem, calc(100svh - 19rem), 48rem); }
+    .cover-toolbar { padding-inline: clamp(0.5rem, 3vw, 3rem); }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .cover-stage { cursor: grab; }
+    .cover-stage[data-dragging], .cover-stage[data-dragging] .cover-card { cursor: grabbing; }
+  }
+
+</style>
+
+<script>
+  type CoverEntry = { href: string; title: string; date: string };
+
+  const flow = document.querySelector<HTMLElement>('#journal-cover-flow');
+  const stage = flow?.querySelector<HTMLElement>('[data-cover-stage]');
+  const planes = Array.from(flow?.querySelectorAll<HTMLElement>('[data-cover-plane]') ?? []);
+  const previous = flow?.querySelector<HTMLButtonElement>('[data-cover-prev]');
+  const next = flow?.querySelector<HTMLButtonElement>('[data-cover-next]');
+  const count = flow?.querySelector<HTMLElement>('[data-cover-count]');
+  const date = flow?.querySelector<HTMLElement>('[data-cover-date]');
+  const link = flow?.querySelector<HTMLAnchorElement>('[data-cover-link]');
+  const linkTitle = link?.querySelector('span');
+  const data = flow?.querySelector('[data-cover-entries]')?.textContent;
+
+  if (stage && planes.length && previous && next && count && date && link && linkTitle && data) {
+    const entries: CoverEntry[] = JSON.parse(data);
+    const motion = matchMedia('(prefers-reduced-motion: reduce)');
+    const cards = planes.map((plane) => plane.querySelector('a'));
+    const sources = planes.map((plane) => plane.querySelector('img')?.src ?? '');
+    let ribbon: Awaited<ReturnType<typeof import('./journal-ribbon').createJournalRibbon>> = null;
+    const wrap = (value: number) => ((value % entries.length) + entries.length) % entries.length;
+    const relative = (index: number, center: number) => wrap(index - center + entries.length / 2) - entries.length / 2;
+    let current = 0;
+    let destination = 0;
+    let width = 0;
+    let height = 0;
+    let selected = -1;
+    let pitch = 1;
+    let frame = 0;
+    let lastTime = 0;
+    let suppressClick = false;
+    let drag: { id: number; x: number; y: number; lastX: number; lastTime: number; releaseDelta: number; startIndex: number; moved: boolean } | null = null;
+
+    const paint = () => {
+      const active = wrap(Math.round(current));
+      if (active !== selected) {
+        if (selected >= 0 && cards[selected]) cards[selected]!.tabIndex = -1;
+        if (cards[active]) cards[active]!.tabIndex = 0;
+        selected = active;
+        const entry = entries[active];
+        count.textContent = `${active + 1} / ${entries.length}`;
+        date.textContent = entry.date;
+        link.href = entry.href;
+        linkTitle.textContent = entry.title;
+      }
+
+      const wide = width >= 650;
+      const cardWidth = Math.min(width * (wide ? 0.52 : 0.79), height * 1.76);
+      const cardHeight = Math.min(height * (wide ? 0.7 : 0.65), cardWidth * 0.78);
+      pitch = cardWidth + (wide ? 15 : 10);
+      const lag = (destination - current) * pitch;
+      const response = motion.matches ? 0 : Math.tanh(lag / (wide ? 520 : 235));
+      const deformation = response * Math.abs(response);
+      stage.toggleAttribute('data-moving', Math.abs(lag) > 1);
+      const useMesh = ribbon && !motion.matches;
+      stage.toggleAttribute('data-mesh', Boolean(useMesh));
+      if (useMesh) ribbon?.resize(width, height);
+      const canvas = stage.querySelector('canvas');
+      if (canvas) canvas.hidden = !useMesh;
+
+      for (const [index, plane] of planes.entries()) {
+        const offset = relative(index, current);
+        const visible = Math.abs(offset) <= 2.5;
+        plane.toggleAttribute('data-visible', visible);
+        const centerX = width * 0.5 + offset * pitch;
+        const left = centerX - cardWidth / 2;
+        const top = (height - cardHeight) / 2;
+        if (useMesh) ribbon?.place(index, visible, left, top, cardWidth, cardHeight, deformation);
+        if (!visible) continue;
+        plane.style.width = `${cardWidth}px`;
+        plane.style.height = `${cardHeight}px`;
+        plane.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+      }
+      if (useMesh) ribbon?.draw();
+    };
+
+    const tick = (time: number) => {
+      frame = 0;
+      const elapsed = lastTime ? Math.min((time - lastTime) / 1000, 0.04) : 1 / 60;
+      lastTime = time;
+      const delta = destination - current;
+      const step = delta * (1 - Math.pow(0.9, elapsed * 60));
+      current = motion.matches || Math.abs(delta) < 0.002 ? destination : current + step;
+      paint();
+      if (current !== destination) {
+        frame = requestAnimationFrame(tick);
+      } else {
+        lastTime = 0;
+        if (!drag?.moved) current = destination = wrap(current);
+      }
+    };
+
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(tick);
+    };
+
+    const move = (value: number, immediate = false) => {
+      destination = entries.length > 1 ? (motion.matches && !drag?.moved ? Math.round(value) : value) : 0;
+      if (immediate || motion.matches) {
+        current = destination;
+      }
+      schedule();
+    };
+
+    previous.addEventListener('click', () => move(Math.round(destination) - 1));
+    next.addEventListener('click', () => move(Math.round(destination) + 1));
+    stage.addEventListener('wheel', (event) => {
+      if (event.ctrlKey || entries.length < 2) return;
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      if (!delta) return;
+      event.preventDefault();
+      const pixels = delta * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? height : 1);
+      const distance = pixels / Math.max(1, pitch);
+      move(motion.matches ? Math.round(destination) + Math.sign(distance) : destination + distance);
+    }, { passive: false });
+
+    stage.addEventListener('keydown', (event) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      const choices = { ArrowLeft: -1, ArrowRight: 1, Home: relative(0, Math.round(current)), End: relative(entries.length - 1, Math.round(current)) };
+      if (!Object.hasOwn(choices, event.key)) return;
+      event.preventDefault();
+      move(Math.round(current) + choices[event.key as keyof typeof choices], true);
+      paint();
+      if (event.target instanceof HTMLAnchorElement) cards[selected]?.focus({ preventScroll: true });
+    });
+
+    stage.addEventListener('pointerdown', (event) => {
+      if (!event.isPrimary || event.button !== 0) return;
+      suppressClick = false;
+      drag = { id: event.pointerId, x: event.clientX, y: event.clientY, lastX: event.clientX, lastTime: event.timeStamp, releaseDelta: 0, startIndex: Math.round(current), moved: false };
+    });
+
+    stage.addEventListener('pointermove', (event) => {
+      if (ribbon && !motion.matches && event.pointerType === 'mouse') {
+        const bounds = stage.getBoundingClientRect();
+        ribbon.point(event.clientX - bounds.left, event.clientY - bounds.top);
+        schedule();
+      }
+      if (!drag || event.pointerId !== drag.id || entries.length < 2) return;
+      if (!drag.moved) {
+        const horizontal = Math.abs(event.clientX - drag.x);
+        if (horizontal <= 10 || horizontal <= Math.abs(event.clientY - drag.y)) return;
+        drag.moved = true;
+        stage.setPointerCapture(event.pointerId);
+        stage.setAttribute('data-dragging', '');
+      }
+      const delta = drag.lastX - event.clientX;
+      const gain = event.pointerType === 'mouse' ? 1.45 : 1;
+      drag.releaseDelta = delta * gain;
+      drag.lastX = event.clientX;
+      drag.lastTime = event.timeStamp;
+      const targetLag = (destination - current) * pitch + drag.releaseDelta;
+      move(current + Math.tanh(targetLag / width) * width / pitch);
+    });
+
+    const finishDrag = (event: PointerEvent) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      if (drag.moved) {
+        suppressClick = true;
+        const recent = event.type === 'pointerup' && event.timeStamp - drag.lastTime < 100;
+        const glide = motion.matches || !recent ? 0 : Math.tanh(drag.releaseDelta * 11 / width) * width / pitch;
+        const distance = drag.x - event.clientX;
+        let target = destination + glide;
+        if (event.pointerType === 'touch' && event.type === 'pointerup') {
+          const direction = Math.sign(distance);
+          const steps = Math.abs(distance) >= 28 ? Math.max(1, Math.round((target - drag.startIndex) * direction)) : 0;
+          target = drag.startIndex + direction * steps;
+        }
+        drag = null;
+        move(target);
+        stage.removeAttribute('data-dragging');
+      }
+      drag = null;
+    };
+
+    window.addEventListener('pointerup', finishDrag);
+    stage.addEventListener('pointercancel', finishDrag);
+    stage.addEventListener('lostpointercapture', (event) => {
+      if (event.target === stage) finishDrag(event);
+    });
+    stage.addEventListener('click', (event) => {
+      if (suppressClick && event.detail > 0) event.preventDefault();
+      suppressClick = false;
+    }, true);
+
+    stage.addEventListener('pointerleave', () => {
+      ribbon?.point(-1000, -1000);
+      schedule();
+    });
+    const enableMesh = async () => {
+      if (ribbon || motion.matches) return;
+      const { createJournalRibbon } = await import('./journal-ribbon');
+      ribbon = await createJournalRibbon(stage, sources);
+      schedule();
+    };
+    new ResizeObserver(([observed]) => {
+      width = observed.contentRect.width;
+      height = observed.contentRect.height;
+      if (width) schedule();
+    }).observe(stage);
+    motion.addEventListener('change', () => {
+      move(destination);
+      void enableMesh().catch(() => {});
+    });
+    void enableMesh().catch(() => {});
+  }
+</script>
