@@ -220,7 +220,7 @@ export const syllabus408: SyllabusSubject = {
                 { id: '408/co/fixed-point-and-complement', title: '原码、补码、移码与加减溢出判断', weight: '★★★', viz: '2d' },
                 {
                   id: '408/co/fixed-point-mul-div',
-                  title: '定点数的乘除运算与 Booth 算法',
+                  title: '定点数的乘除运算',
                   weight: '★★',
                   viz: '2d',
                   related: ['408/co/alu-and-carry-lookahead', '408/co/machine-code-and-stack'],
