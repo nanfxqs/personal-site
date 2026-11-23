@@ -218,6 +218,13 @@ export const syllabus408: SyllabusSubject = {
               title: '定点数与浮点数',
               topics: [
                 { id: '408/co/fixed-point-and-complement', title: '原码、补码、移码与加减溢出判断', weight: '★★★', viz: '2d' },
+                {
+                  id: '408/co/fixed-point-mul-div',
+                  title: '定点数的乘除运算与 Booth 算法',
+                  weight: '★★',
+                  viz: '2d',
+                  related: ['408/co/alu-and-carry-lookahead', '408/co/machine-code-and-stack'],
+                },
                 { id: '408/co/ieee-754-float', title: 'IEEE 754 浮点数表示与运算', weight: '★★★', viz: '2d' },
                 { id: '408/co/alu-and-carry-lookahead', title: 'ALU、先行进位与阵列乘除法', weight: '★★', viz: '2d' },
                 { id: '408/co/data-alignment-endianness', title: '大小端模式与边界对齐', weight: '★★', related: ['408/cn/ipv4-and-subnetting'] },
