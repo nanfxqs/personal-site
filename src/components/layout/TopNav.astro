@@ -12,11 +12,30 @@ function isActive(href: string): boolean {
 }
 
 const subjectLinks = [
-  { label: '408', href: '/kb/408', dot: 'bg-[var(--subject-408)]' },
-  { label: '数学一', href: '/kb/math1', dot: 'bg-[var(--subject-math1)]' },
-  { label: '英语一', href: '/kb/english1', dot: 'bg-[var(--subject-english1)]' },
+  {
+    label: '408',
+    subtitle: '数据结构 · 计组 · OS · 计网',
+    href: '/kb/408',
+    dot: 'bg-[var(--subject-408)]',
+    glow: 'shadow-[0_0_8px_color-mix(in_srgb,var(--subject-408)_55%,transparent)]',
+  },
+  {
+    label: '数学一',
+    subtitle: '高数 · 线代 · 概率论',
+    href: '/kb/math1',
+    dot: 'bg-[var(--subject-math1)]',
+    glow: 'shadow-[0_0_8px_color-mix(in_srgb,var(--subject-math1)_55%,transparent)]',
+  },
+  {
+    label: '英语一',
+    subtitle: '词句地基 · 五大题型',
+    href: '/kb/english1',
+    dot: 'bg-[var(--subject-english1)]',
+    glow: 'shadow-[0_0_8px_color-mix(in_srgb,var(--subject-english1)_55%,transparent)]',
+  },
 ];
 const activeSubject = subjectLinks.find(({ href }) => isActive(href));
+const isKbOverview = currentPath === '/kb' || currentPath === '/kb/';
 ---
 
 <header
@@ -64,43 +83,130 @@ const activeSubject = subjectLinks.find(({ href }) => isActive(href));
         data-current={activeSubject ? 'true' : undefined}
         class={cn(
           buttonVariants({ variant: activeSubject ? 'secondary' : 'ghost', size: 'sm' }),
-          'shrink-0 gap-1.5 rounded-full text-xs md:text-[13px]',
+          'subject-trigger shrink-0 gap-1.5 rounded-full text-xs md:text-[13px]',
         )}
       >
-        {activeSubject ? `学科 · ${activeSubject.label}` : '学科'}
-        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        {activeSubject && (
+          <span class={cn('h-1.5 w-1.5 rounded-full', activeSubject.dot)} aria-hidden="true" />
+        )}
+        <span>{activeSubject ? `学科 · ${activeSubject.label}` : '学科'}</span>
+        <svg
+          class="subject-chevron size-3.5 opacity-75"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
-      <div id="subject-nav-menu" popover role="group" aria-label="选择学科"
-        class="fixed inset-auto m-0 w-40 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg">
+      <div
+        id="subject-nav-menu"
+        popover
+        role="group"
+        aria-label="选择学科"
+        class="subject-popover glass-surface-strong fixed inset-auto m-0 w-60 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-2xl p-1.5 text-popover-foreground"
+      >
         <ul class="space-y-0.5">
           {
             subjectLinks.map((link) => {
               const active = isActive(link.href);
               return (
-                <li><a
-                  href={link.href}
-                  aria-current={active ? 'location' : undefined}
-                  class={cn(
-                    'flex min-h-10 items-center gap-2.5 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary',
-                    active
-                      ? 'bg-primary text-primary-foreground shadow-xs'
-                      : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
-                  )}
-                >
-                  <span
+                <li>
+                  <a
+                    href={link.href}
+                    aria-current={active ? 'location' : undefined}
                     class={cn(
-                      'h-1.5 w-1.5 rounded-full',
-                      active ? 'bg-primary-foreground' : link.dot,
+                      'subject-menu-item group flex min-h-11 items-center gap-3 rounded-[10px] px-2.5 py-2 transition-[background-color,color,box-shadow] duration-150 ease-[var(--ease-out)] focus-visible:outline-2 focus-visible:outline-primary',
+                      active
+                        ? 'bg-secondary/90 text-secondary-foreground shadow-[inset_0_0_0_1px_var(--specular-border)]'
+                        : 'text-foreground/90 hover:bg-accent/70 hover:text-accent-foreground',
                     )}
-                  />
-                  <span>{link.label}</span>
-                </a></li>
+                  >
+                    <span
+                      class={cn(
+                        'h-2 w-2 shrink-0 rounded-full',
+                        link.dot,
+                        link.glow,
+                      )}
+                      aria-hidden="true"
+                    />
+                    <span class="min-w-0 flex-1">
+                      <span class={cn('block text-[13px] leading-tight', active ? 'font-semibold' : 'font-medium')}>
+                        {link.label}
+                      </span>
+                      <span
+                        class={cn(
+                          'mt-0.5 block truncate text-[11px] leading-tight',
+                          active ? 'text-secondary-foreground/75' : 'text-muted-foreground',
+                        )}
+                      >
+                        {link.subtitle}
+                      </span>
+                    </span>
+                    {active ? (
+                      <svg
+                        class="size-3.5 shrink-0 text-primary"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    ) : (
+                      <svg
+                        class="subject-menu-arrow size-3.5 shrink-0 text-muted-foreground/65 opacity-60 transition-[transform,opacity,color] duration-150 ease-[var(--ease-out)]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="m9 18 6-6-6-6" />
+                      </svg>
+                    )}
+                  </a>
+                </li>
               );
             })
           }
         </ul>
+        <div class="mt-1 border-t border-border/60 pt-1">
+          <a
+            href="/kb"
+            aria-current={isKbOverview ? 'page' : undefined}
+            class={cn(
+              'subject-menu-item group flex min-h-8 items-center justify-between rounded-[10px] px-2.5 py-1.5 text-xs font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out)] focus-visible:outline-2 focus-visible:outline-primary',
+              isKbOverview
+                ? 'bg-secondary/90 text-secondary-foreground'
+                : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
+            )}
+          >
+            <span>知识库总览</span>
+            <svg
+              class="subject-menu-arrow size-3 text-muted-foreground/70 opacity-65 transition-[transform,opacity] duration-150 ease-[var(--ease-out)]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </a>
+        </div>
       </div>
 
       <a
@@ -158,11 +264,20 @@ const activeSubject = subjectLinks.find(({ href }) => isActive(href));
     function positionMenu() {
       const triggerBounds = trigger.getBoundingClientRect();
       const navBounds = nav.getBoundingClientRect();
-      const top = triggerBounds.bottom + 8;
-      const left = Math.min(Math.max(8, triggerBounds.left, navBounds.left), document.documentElement.clientWidth - menu.offsetWidth - 8);
+      const menuWidth = menu.offsetWidth || 240;
+      const top = triggerBounds.bottom + 6;
+      const left = Math.min(
+        Math.max(8, triggerBounds.left, navBounds.left),
+        document.documentElement.clientWidth - menuWidth - 8,
+      );
+      const originX = Math.max(
+        16,
+        Math.min(menuWidth - 16, triggerBounds.left + triggerBounds.width / 2 - left),
+      );
       menu.style.left = `${left}px`;
       menu.style.top = `${top}px`;
       menu.style.maxHeight = `${Math.max(0, window.innerHeight - top - 8)}px`;
+      menu.style.setProperty('--popover-origin-x', `${Math.round(originX)}px`);
     }
 
     function syncPosition() {
@@ -183,9 +298,7 @@ const activeSubject = subjectLinks.find(({ href }) => isActive(href));
     });
     menu.addEventListener('beforetoggle', (event) => {
       if (event.newState === 'open') {
-        const bounds = trigger.getBoundingClientRect();
-        menu.style.left = `${Math.max(8, bounds.left)}px`;
-        menu.style.top = `${bounds.bottom + 8}px`;
+        positionMenu();
       }
     });
     document.addEventListener('focusin', (event) => {
@@ -213,3 +326,87 @@ const activeSubject = subjectLinks.find(({ href }) => isActive(href));
     }
   })();
 </script>
+
+<style>
+  .subject-trigger .subject-chevron {
+    transition: transform 200ms var(--ease-out), opacity 180ms ease;
+  }
+
+  .subject-trigger[aria-expanded='true'] {
+    background-color: var(--accent-surface);
+    color: var(--accent-foreground);
+    box-shadow: inset 0 0 0 1px var(--specular-border);
+  }
+
+  .subject-trigger[data-current='true'][aria-expanded='true'] {
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+  }
+
+  .subject-trigger[aria-expanded='true'] .subject-chevron {
+    transform: rotate(180deg);
+    opacity: 1;
+  }
+
+  .subject-popover {
+    transform-origin: var(--popover-origin-x, 2.5rem) top;
+    box-shadow: var(--glass-inset), var(--glass-shadow-hover);
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+    transition:
+      opacity 150ms var(--ease-out),
+      transform 160ms var(--ease-out),
+      display 160ms allow-discrete,
+      overlay 160ms allow-discrete;
+  }
+
+  .subject-popover:popover-open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition:
+      opacity 180ms var(--ease-out),
+      transform 200ms var(--ease-out),
+      display 200ms allow-discrete,
+      overlay 200ms allow-discrete;
+  }
+
+  @starting-style {
+    .subject-popover:popover-open {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.96);
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .subject-menu-item:hover .subject-menu-arrow {
+      transform: translateX(2px);
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .subject-trigger .subject-chevron {
+      transition: none;
+    }
+
+    .subject-popover,
+    .subject-popover:popover-open {
+      transform: none;
+      transition:
+        opacity 120ms ease,
+        display 120ms allow-discrete,
+        overlay 120ms allow-discrete;
+    }
+
+    @starting-style {
+      .subject-popover:popover-open {
+        opacity: 0;
+        transform: none;
+      }
+    }
+
+    .subject-menu-item .subject-menu-arrow {
+      transition: opacity 120ms ease;
+    }
+  }
+</style>
