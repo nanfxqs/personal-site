@@ -1,5 +1,13 @@
 # Obsidian 图谱渲染与动效调研
 
+## 当前分支补查
+
+`/graph` 已经使用 `force-graph` 与自定义 Canvas 绘制。筛选会重建节点和初始坐标，随后调用 `zoomToFit(0, 48)`，因此幸存节点的位置和相机可能突变。悬停和选中使用离散透明度，一次重绘就切换到目标样式。默认视图的标签由缩放阈值控制，进入可见区间后随缩放渐变。缩放按钮已经有相机插值，可作为筛选后相机过渡的基础。这些是源码层面可确认的行为。帧率瓶颈仍需浏览器实测。[图谱组件](../../src/components/kb/KnowledgeGraph.tsx#L39) · [页面入口](../../src/pages/graph.astro) · [force-graph API](https://github.com/vasturiano/force-graph#api-reference)
+
+- **低成本基线**｜保留 Canvas，先复用筛选前仍存在节点的坐标，保留用户当前视口，给节点、边和标签透明度做短过渡。静止时继续暂停重绘，过渡期间按需唤醒。分别观察筛选、拖拽释放和缩放时的画面连续性，再测帧时间。[图谱组件](../../src/components/kb/KnowledgeGraph.tsx#L116) · [force-graph API](https://github.com/vasturiano/force-graph#api-reference)
+- **首选替换候选**｜用 PixiJS 绘制，沿用 D3 力模型。适合自定义节点、边、标签图层和过渡。接入时要为现有的拖拽、节点命中、高亮、相机、主题与减少动态效果设置重新接线。[PixiJS](https://github.com/pixijs/pixijs) · [d3-force](https://github.com/d3/d3-force)
+- **WebGL 对照组**｜Sigma.js + Graphology 更适合以图数据、视口和标签为中心的渲染方案，布局可独立选型。若要保留当前的学科锚点和碰撞参数，可先沿用 D3 计算坐标，再验证拖拽期间更新坐标的成本。[Sigma.js](https://github.com/jacomyal/sigma.js) · [Graphology](https://github.com/graphology/graphology)
+
 > **调研范围**：Obsidian 内置 Graph View，以及本站知识库图谱的三种候选方案。资料核验于 2026 年 11 月 22 日，依据产品官方文档、版本记录、开发者发言和上游源码。
 
 ---
@@ -30,3 +38,9 @@
 ## 三、本站 Canvas 接入的依据
 
 从已公开的行为推导，本站采用 `force-graph` 即可覆盖 Canvas 绘制、节点交互、力模拟和视口过渡。`autoPauseRedraw` 默认会在模拟停止时跳过持续重绘，若标签或高亮需要在此时继续渐变，应验证该效果如何触发后续帧。悬停高亮可用节点悬停回调配合绘制样式实现。时间推移需要按内容创建时间编排节点和连线的更新，与模拟本身的冷却分别控制。这里的取舍依据是 API 和接入成本，实际布局稳定性与渲染吞吐量仍需用本站图数据验证。([`force-graph` API](https://github.com/vasturiano/force-graph#api-reference)、[Obsidian Graph View 帮助](https://obsidian.md/help/plugins/graph))
+
+### 3.1 社区二维图谱实例
+
+- **Quartz v5** 的默认图谱插件支持局部与全局视图，用 D3 在 CPU 上计算布局，再由 PixiJS 绘制。拖拽时提高 `alphaTarget` 并重启模拟，用 `fx`、`fy` 固定拖拽节点。松手后清除固定坐标，将 `alphaTarget` 归零，让布局继续冷却。([Quartz v5 文档](https://github.com/jackyzha0/quartz/blob/v5/docs/features/graph%20view.md)、[图谱插件源码](https://github.com/quartz-community/graph/blob/main/src/components/scripts/graph.inline.ts)、[D3 模拟 API](https://d3js.org/d3-force/simulation))
+- **Obsidian 社区插件**展示了两种接入方式。Extended Graph 在内置图谱上增加节点固定、标签或属性筛选和节点形状。Juggl 用 Cytoscape.js 提供独立的局部图谱，支持按需展开邻域并自定义节点样式。([Extended Graph](https://github.com/ElsaTam/obsidian-extended-graph#extended-graph)、[Juggl](https://github.com/HEmile/juggl))
+- **PixiJS + D3 与 Cosmograph** 的主要区别在于力模拟在哪里执行。Quartz 式组合可通过 D3 注册自定义力，并由应用控制模拟与绘制之间的联动。Cosmograph 的底层引擎 `cosmos.gl` 将力模拟和绘制都放到 WebGL GPU 管线，提供内置力参数及位置、颜色和尺寸等属性的过渡。前者便于逐项定制力和交互，后者可作为大规模图谱的候选，实际收益需在目标设备上测量。([D3 自定义力](https://d3js.org/d3-force/simulation#custom-forces)、[Cosmograph 接入文档](https://cosmograph.app/docs-lib/)、[`cosmos.gl` 引擎与配置](https://github.com/cosmosgl/graph#readme))
