@@ -227,6 +227,15 @@
   h1, h2, h3, .font-editorial {
     font-family: var(--font-serif);
     letter-spacing: -0.015em;
+    font-synthesis-weight: none;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  summary:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 
   code, pre, kbd {
@@ -319,6 +328,7 @@
 /* Editorial prose using LXGW WenKai Screen for comfortable long-form reading */
 .prose-editorial {
   font-family: var(--font-serif);
+  font-synthesis-weight: none;
   --tw-prose-body: var(--foreground);
   --tw-prose-headings: var(--foreground);
   --tw-prose-lead: var(--muted-foreground);
@@ -333,7 +343,28 @@
   --tw-prose-pre-bg: var(--surface-subtle);
   --tw-prose-th-borders: var(--border);
   --tw-prose-td-borders: var(--border);
-  line-height: 1.9;
+  font-size: 1.03125rem;
+  line-height: 1.92;
+}
+
+.prose-editorial :where(h1, h2, h3, h4) {
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+.prose-editorial :where(h2) {
+  margin-top: 2.25em;
+  margin-bottom: 0.75em;
+}
+
+.prose-editorial :where(h3) {
+  margin-top: 1.75em;
+  margin-bottom: 0.55em;
+}
+
+.prose-editorial :where(p) {
+  margin-top: 1.15em;
+  margin-bottom: 1.15em;
 }
 
 .prose-editorial pre {

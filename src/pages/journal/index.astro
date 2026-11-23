@@ -23,81 +23,129 @@ const covers = posts.map(({ id, data }) => ({
 
 <BaseLayout title="个人日常" wide>
   <header class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-    <div class="flex flex-wrap items-baseline justify-between gap-4 border-b border-border py-6 sm:py-9">
+    <div class="flex flex-col gap-4 border-b border-border/80 pt-7 pb-5 sm:flex-row sm:items-end sm:justify-between sm:pt-10 sm:pb-6">
       <div>
-        <h1 class="font-editorial text-3xl font-semibold text-[var(--text)] sm:text-4xl">
+        <h1 class="font-editorial text-3xl leading-[1.2] text-foreground sm:text-4xl">
           个人日常与随笔
         </h1>
-        <p class="mt-2 text-sm text-[var(--text-muted)]">
-          记录生活片段、随笔感慨、图像与影音。共 {posts.length} 篇。
+        <p class="mt-2 text-sm text-muted-foreground tabular-nums">
+          生活片段、随笔感慨与影像记录 · 共 {posts.length} 篇
         </p>
       </div>
       {covers.length > 0 && (
-        <div id="journal-view-switch" hidden role="group" aria-label="日常浏览方式" class="gap-1 rounded-full border border-border bg-card p-1">
-          <button type="button" class={buttonVariants({ variant: 'ghost', size: 'sm', className: 'rounded-full' })} data-journal-panel="journal-cover-flow" aria-controls="journal-cover-flow" aria-pressed="true">立体浏览</button>
-          <button type="button" class={buttonVariants({ variant: 'ghost', size: 'sm', className: 'rounded-full' })} data-journal-panel="journal-timeline" aria-controls="journal-timeline" aria-pressed="false">时间线</button>
+        <div
+          id="journal-view-switch"
+          hidden
+          role="group"
+          aria-label="日常浏览方式"
+          class="w-fit gap-1 rounded-full border border-border/75 bg-muted/70 p-1"
+        >
+          <button
+            type="button"
+            class="journal-switch-btn rounded-full px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-[background-color,color,box-shadow] duration-150 ease-[var(--ease-out)] cursor-pointer hover:text-foreground"
+            data-journal-panel="journal-cover-flow"
+            aria-controls="journal-cover-flow"
+            aria-pressed="true"
+          >
+            立体浏览
+          </button>
+          <button
+            type="button"
+            class="journal-switch-btn rounded-full px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-[background-color,color,box-shadow] duration-150 ease-[var(--ease-out)] cursor-pointer hover:text-foreground"
+            data-journal-panel="journal-timeline"
+            aria-controls="journal-timeline"
+            aria-pressed="false"
+          >
+            时间线
+          </button>
         </div>
       )}
     </div>
   </header>
 
-  <!-- Vertical Draggable & Fading Timeline (natural page scroll on mobile, fading viewport on md+) -->
-  {covers.length > 0 && <JournalCoverFlow entries={covers} />}
-  <section id="journal-timeline" class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-    <div
-      id="vertical-timeline-viewport"
-      class="no-scrollbar relative px-1 py-4 sm:px-2 md:timeline-fade-mask md:max-h-[72vh] md:overflow-y-auto md:py-10 md:select-none md:cursor-grab"
-    >
-      <div class="relative mx-auto max-w-3xl border-l border-border pl-7 sm:pl-10">
-        {
-          posts.map((post) => {
-            const slug = normalizeJournalSlug(post.id);
-            const dateStr = formatJournalDate(post.data.date, post.data.datePrecision, post.data.dateLabel);
-            const dateTimeAttr = formatJournalDateTimeAttr(
-              post.data.date,
-              post.data.datePrecision,
-            );
-            return (
-              <article
-                data-timeline-item
-                class="relative"
-              >
-                <a
-                  href={`/journal/${slug}`}
-                  draggable="false"
-                  class="journal-entry relative block rounded-sm py-5 pr-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:py-6"
-                >
-                  <span aria-hidden="true" class="journal-node absolute -left-7 top-[1.75rem] size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary bg-background sm:-left-10 sm:top-[2rem]" />
-                  <div class="journal-copy">
-                    <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span class="tabular-nums tracking-wide">
-                        {dateTimeAttr ? <time datetime={dateTimeAttr}>{dateStr}</time> : dateStr}
-                      </span>
-                      {post.data.mood && <span>{post.data.mood}</span>}
-                      {post.data.media.length > 0 && <span>含 {post.data.media.length} 个媒体附件</span>}
-                      {post.data.tags.map((tag) => (
-                        <span class="text-[11px] text-muted-foreground">#{tag}</span>
-                      ))}
-                    </div>
-
-                    <h2 class="journal-title mt-1.5 font-editorial text-xl font-semibold text-foreground sm:text-2xl">
-                      {post.data.title}
-                    </h2>
-
-                    {post.data.summary && (
-                      <p class="mt-2 font-editorial text-sm leading-relaxed text-muted-foreground">
-                        {post.data.summary}
-                      </p>
-                    )}
-                  </div>
-                </a>
-              </article>
-            );
-          })
-        }
+  {posts.length === 0 ? (
+    <section class="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
+      <p class="font-editorial text-lg text-foreground">还没有公开发布的日常随笔</p>
+      <p class="mt-2 text-sm text-muted-foreground">可以先去浏览考研知识库，或回到首页查看整体进度。</p>
+      <div class="mt-5 flex justify-center gap-2.5">
+        <a href="/kb" class={buttonVariants({ variant: 'default', size: 'sm', className: 'rounded-full' })}>
+          浏览知识库
+        </a>
+        <a href="/" class={buttonVariants({ variant: 'outline', size: 'sm', className: 'rounded-full' })}>
+          返回首页
+        </a>
       </div>
-    </div>
-  </section>
+    </section>
+  ) : (
+    <>
+      <JournalCoverFlow entries={covers} />
+
+      <!-- Vertical Draggable & Fading Timeline (natural page scroll on mobile, fading viewport on md+) -->
+      <section id="journal-timeline" class="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <div
+          id="vertical-timeline-viewport"
+          class="no-scrollbar relative px-1 py-2 sm:px-2 md:timeline-fade-mask md:max-h-[72vh] md:overflow-y-auto md:py-8 md:select-none md:cursor-grab"
+        >
+          <div class="relative mx-auto max-w-3xl border-l border-border/80 pl-6 sm:pl-9">
+            {
+              posts.map((post) => {
+                const slug = normalizeJournalSlug(post.id);
+                const dateStr = formatJournalDate(post.data.date, post.data.datePrecision, post.data.dateLabel);
+                const dateTimeAttr = formatJournalDateTimeAttr(
+                  post.data.date,
+                  post.data.datePrecision,
+                );
+                return (
+                  <article
+                    data-timeline-item
+                    class="relative border-b border-border/45 last:border-b-0"
+                  >
+                    <a
+                      href={`/journal/${slug}`}
+                      draggable="false"
+                      class="journal-entry relative block rounded-sm py-5 pr-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:py-6"
+                    >
+                      <span
+                        aria-hidden="true"
+                        class="journal-node absolute -left-6 top-[1.85rem] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary bg-background sm:-left-9 sm:top-[2.15rem]"
+                      />
+                      <div class="journal-copy flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-6">
+                        <div class="shrink-0 text-xs text-muted-foreground tabular-nums sm:w-32">
+                          {dateTimeAttr ? <time datetime={dateTimeAttr}>{dateStr}</time> : dateStr}
+                        </div>
+
+                        <div class="min-w-0 flex-1">
+                          <h2 class="journal-title font-editorial text-xl leading-[1.35] text-foreground sm:text-[1.35rem]">
+                            {post.data.title}
+                          </h2>
+
+                          {post.data.summary && (
+                            <p class="mt-2 font-editorial text-sm leading-[1.75] text-muted-foreground">
+                              {post.data.summary}
+                            </p>
+                          )}
+
+                          {(post.data.mood || post.data.media.length > 0 || post.data.tags.length > 0) && (
+                            <div class="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                              {post.data.mood && <span>{post.data.mood}</span>}
+                              {post.data.media.length > 0 && <span>含 {post.data.media.length} 个媒体附件</span>}
+                              {post.data.tags.map((tag) => (
+                                <span>#{tag}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </a>
+                  </article>
+                );
+              })
+            }
+          </div>
+        </div>
+      </section>
+    </>
+  )}
 </BaseLayout>
 
 <style>
@@ -106,6 +154,7 @@ const covers = posts.map(({ id, data }) => ({
   #journal-view-switch button[aria-pressed="true"] {
     background: var(--primary);
     color: var(--primary-foreground);
+    box-shadow: 0 1px 2px rgba(12, 23, 38, 0.12);
   }
 
   .journal-title {
@@ -116,6 +165,7 @@ const covers = posts.map(({ id, data }) => ({
   }
 
   .journal-entry:focus-visible .journal-title {
+    color: var(--primary);
     text-decoration-color: var(--primary);
   }
 
@@ -124,7 +174,10 @@ const covers = posts.map(({ id, data }) => ({
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .journal-entry:hover .journal-title { text-decoration-color: var(--primary); }
+    .journal-entry:hover .journal-title {
+      color: var(--primary);
+      text-decoration-color: color-mix(in srgb, var(--primary) 55%, transparent);
+    }
     .journal-entry:hover .journal-node { background-color: var(--primary); }
   }
 
@@ -133,10 +186,10 @@ const covers = posts.map(({ id, data }) => ({
       transition: transform 150ms var(--ease-out), background-color 150ms ease;
     }
 
-    .journal-title { transition: text-decoration-color 150ms ease; }
+    .journal-title { transition: color 150ms ease, text-decoration-color 150ms ease; }
 
     @media (hover: hover) and (pointer: fine) {
-      .journal-entry:hover .journal-copy { transform: translateX(4px); }
+      .journal-entry:hover .journal-copy { transform: translateX(3px); }
       .journal-entry:hover .journal-node { transform: scale(1.3); }
     }
 
