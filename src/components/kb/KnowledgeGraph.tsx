@@ -26,18 +26,28 @@ const VIEW_CONTROLS = [
 ];
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 5;
+const HIGHLIGHT_DURATION = 0.15;
+const FLOAT_PERIOD_MS = 5200;
+const FLOAT_RADIUS_PX = 3;
 
 type SubjectFilter = typeof FILTERS[number];
-type CanvasNode = GraphNode & { x: number; y: number; anchorX: number; anchorY: number };
+type CanvasNode = GraphNode & {
+  x: number; y: number; anchorX: number; anchorY: number; floatPhase: number; degree: number;
+};
 type CanvasLink = { source: CanvasNode; target: CanvasNode; kind: GraphEdge['kind'] };
 type Graph = ForceGraph<CanvasNode, CanvasLink>;
 type Camera = { x: number; y: number; scale: number };
 
 function nodeRadius(node: CanvasNode) {
-  return node.isPublished ? 6 : 4;
+  return 3.5 + Math.min(5, 1.6 * Math.sqrt(node.degree));
 }
 
-function makeGraphData(nodes: GraphNode[], edges: GraphEdge[]) {
+function seedGraphNodes(nodes: GraphNode[], edges: GraphEdge[]) {
+  const degrees = new Map<string, number>();
+  for (const { source, target } of edges) {
+    degrees.set(source, (degrees.get(source) ?? 0) + 1);
+    degrees.set(target, (degrees.get(target) ?? 0) + 1);
+  }
   const subjects = Array.from(new Set(nodes.map((node) => node.subjectId)));
   const coursesBySubject = new Map(subjects.map((subject) => [
     subject, Array.from(new Set(nodes.filter((node) => node.subjectId === subject).map((node) => node.courseId))),
@@ -45,28 +55,21 @@ function makeGraphData(nodes: GraphNode[], edges: GraphEdge[]) {
   const byId = new Map<string, CanvasNode>();
   nodes.forEach((node, index) => {
     const angle = 2 * Math.PI * subjects.indexOf(node.subjectId) / subjects.length - Math.PI / 2;
-    const distance = subjects.length > 1 ? 120 : 0;
+    const distance = subjects.length > 1 ? 72 : 0;
     const courses = coursesBySubject.get(node.subjectId)!;
     const courseAngle = angle + 2 * Math.PI * courses.indexOf(node.courseId) / courses.length;
-    const courseDistance = courses.length > 1 ? 54 : 0;
+    const courseDistance = courses.length > 1 ? 32 : 0;
     const anchorX = Math.cos(angle) * distance + Math.cos(courseAngle) * courseDistance;
     const anchorY = Math.sin(angle) * distance + Math.sin(courseAngle) * courseDistance;
     const spiral = index * Math.PI * (3 - Math.sqrt(5));
-    const radius = Math.sqrt(index) * 11;
+    const radius = Math.sqrt(index) * 7;
     byId.set(node.id, {
-      ...node, anchorX, anchorY,
+      ...node, anchorX, anchorY, floatPhase: spiral, degree: degrees.get(node.id) ?? 0,
       x: anchorX + Math.cos(spiral) * radius,
       y: anchorY + Math.sin(spiral) * radius,
     });
   });
-  return {
-    nodes: Array.from(byId.values()),
-    links: edges.map((edge) => ({
-      source: byId.get(edge.source)!,
-      target: byId.get(edge.target)!,
-      kind: edge.kind,
-    })),
-  };
+  return byId;
 }
 
 export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: GraphEdge[] }) {
@@ -79,6 +82,8 @@ export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Gr
   const [graph, setGraph] = useState<Graph | null>(null);
   const selectionRef = useRef('');
   const cameraAnimation = useRef<{ stop: () => void }>();
+  const savedPositions = useRef(new Map<string, Pick<CanvasNode, 'x' | 'y'>>());
+  const seeds = useMemo(() => seedGraphNodes(nodes, edges), [nodes, edges]);
 
   const filtered = useMemo(() => {
     const candidates = nodes.filter((node) => subjectFilter === 'all' || node.subjectId === subjectFilter);
@@ -105,101 +110,229 @@ export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Gr
     let instance: Graph | undefined;
     let observer: ResizeObserver | undefined;
     let themeObserver: MutationObserver | undefined;
+    let visibilityObserver: IntersectionObserver | undefined;
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const hoverPreference = window.matchMedia('(any-hover: hover)');
+    const hoverPreference = window.matchMedia('(hover: hover) and (pointer: fine)');
     let hoveredId = '';
     let activeId = '';
     let neighbors = new Set<string>();
     let text = '';
     let muted = '';
+    let labelOutline = '';
+    let accent = '';
+    let focusAnimation: { stop: () => void } | undefined;
 
     import('force-graph').then(({ default: ForceGraphRenderer }) => {
       if (disposed) return;
       const renderer = new ForceGraphRenderer<CanvasNode, CanvasLink>(host);
       instance = renderer;
       const refresh = () => renderer.autoPauseRedraw(false);
+      let progress = 1;
+      let renderedNodes: CanvasNode[] | undefined;
+      let canvasVisible = false;
+      const offsets = new Map<CanvasNode, { x: number; y: number }>();
+      const labels: { title: string; x: number; y: number; opacity: number; priority: number }[] = [];
+      let dragging: CanvasNode | undefined;
+      let emphasis = (id: string) => Number(id === activeId);
+      let labelEmphasis = (id: string) => Number(id === activeId || neighbors.has(id));
+      let visibility = (id: string) => Number(!activeId || id === activeId || neighbors.has(id));
+      let edgeEmphasis = (link: CanvasLink) =>
+        Number(link.source.id === activeId || link.target.id === activeId);
+      let dimming = () => Number(Boolean(activeId));
       const readTheme = () => {
         const style = getComputedStyle(host);
         text = style.getPropertyValue('--text').trim();
         muted = style.getPropertyValue('--text-muted').trim();
+        labelOutline = style.getPropertyValue('--background').trim();
+        accent = style.getPropertyValue('--primary').trim();
         refresh();
       };
       renderer
         .minZoom(MIN_ZOOM).maxZoom(MAX_ZOOM)
         .nodeVal((node) => (nodeRadius(node) / 4) ** 2)
         .nodeLabel('').linkLabel('').linkHoverPrecision(0)
-        .d3VelocityDecay(0.35).d3AlphaDecay(0.035).d3AlphaMin(0.015)
+        .d3VelocityDecay(0.43).d3AlphaDecay(0.045).d3AlphaMin(0.015)
         .d3Force('center', null)
-        .d3Force('cluster-x', forceX<CanvasNode>((node) => node.anchorX).strength(0.07))
-        .d3Force('cluster-y', forceY<CanvasNode>((node) => node.anchorY).strength(0.07))
-        .d3Force('collision', forceCollide<CanvasNode>(11))
+        .d3Force('cluster-x', forceX<CanvasNode>((node) => node.anchorX).strength(0.045))
+        .d3Force('cluster-y', forceY<CanvasNode>((node) => node.anchorY).strength(0.045))
+        .d3Force('collision', forceCollide<CanvasNode>((node) => nodeRadius(node) + 4))
         .onRenderFramePre(() => {
-          const next = selectionRef.current || hoveredId;
-          if (next === activeId) return;
+          const { nodes: visibleNodes, links } = renderer.graphData();
+          const dataChanged = renderedNodes !== visibleNodes;
+          offsets.clear();
+          labels.length = 0;
+          if (canvasVisible && !motionPreference.matches) {
+            const phase = performance.now() * 2 * Math.PI / FLOAT_PERIOD_MS;
+            visibleNodes.forEach((node) => {
+              if (node === dragging) return;
+              const angle = phase + node.floatPhase;
+              offsets.set(node, { x: Math.cos(angle) * FLOAT_RADIUS_PX, y: Math.sin(angle) * FLOAT_RADIUS_PX });
+            });
+          }
+          if (dataChanged) hoveredId = '';
+          renderedNodes = visibleNodes;
+          const requested = dragging?.id || selectionRef.current || hoveredId;
+          if (!dataChanged && requested === activeId) return;
+          const next = requested && visibleNodes.some((node) => node.id === requested) ? requested : '';
+          if (next === activeId && !next) return;
+          focusAnimation?.stop();
+          const previousEmphasis = new Map(visibleNodes.map(({ id }) => [id, emphasis(id)]));
+          const previousLabels = new Map(visibleNodes.map(({ id }) => [id, labelEmphasis(id)]));
+          const previousVisibility = new Map(visibleNodes.map(({ id }) => [id, visibility(id)]));
+          const previousEdges = new Map(links.map((link) => [link, edgeEmphasis(link)]));
+          const previousDimming = dimming();
           activeId = next;
           neighbors = new Set();
-          if (!activeId) return;
-          for (const { source, target } of renderer.graphData().links) {
+          for (const { source, target } of links) {
             if (source.id === activeId) neighbors.add(target.id);
             if (target.id === activeId) neighbors.add(source.id);
           }
+          const blend = (from: number, to: number) => from + (to - from) * progress;
+          emphasis = (id) => blend(previousEmphasis.get(id) ?? 0, Number(id === activeId));
+          labelEmphasis = (id) => blend(previousLabels.get(id) ?? 0, Number(id === activeId || neighbors.has(id)));
+          visibility = (id) => blend(previousVisibility.get(id) ?? 1,
+            Number(!activeId || id === activeId || neighbors.has(id)));
+          edgeEmphasis = (link) => blend(previousEdges.get(link) ?? 0,
+            Number(link.source.id === activeId || link.target.id === activeId));
+          dimming = () => blend(previousDimming, Number(Boolean(activeId)));
+          progress = motionPreference.matches ? 1 : 0;
+          if (!motionPreference.matches) {
+            focusAnimation = animate(0, 1, {
+              duration: HIGHLIGHT_DURATION,
+              ease: [0.23, 1, 0.32, 1],
+              onUpdate(value) {
+                progress = value;
+                refresh();
+              },
+            });
+          }
         })
-        .onRenderFramePost(() => {
-          if (!renderer.autoPauseRedraw()) renderer.autoPauseRedraw(true);
+        .onRenderFramePost((context, scale) => {
+          context.save();
+          context.font = `${12 / scale}px system-ui, sans-serif`;
+          context.textAlign = 'center';
+          const occupied: { left: number; right: number; top: number; bottom: number }[] = [];
+          for (const label of labels.sort((first, second) => second.priority - first.priority)) {
+            const halfWidth = context.measureText(label.title).width / 2 + 3 / scale;
+            const bounds = { left: label.x - halfWidth, right: label.x + halfWidth,
+              top: label.y - 12 / scale, bottom: label.y + 3 / scale };
+            if (label.priority < 100 && occupied.some((other) =>
+              bounds.left < other.right && bounds.right > other.left
+              && bounds.top < other.bottom && bounds.bottom > other.top)) continue;
+            occupied.push(bounds);
+            context.globalAlpha = label.opacity;
+            if (labelOutline) {
+              context.strokeStyle = labelOutline;
+              context.lineWidth = 3 / scale;
+              context.lineJoin = 'round';
+              context.strokeText(label.title, label.x, label.y);
+            }
+            context.fillStyle = text;
+            context.fillText(label.title, label.x, label.y);
+          }
+          context.restore();
+          if (renderer.autoPauseRedraw() !== (motionPreference.matches || !canvasVisible)) {
+            renderer.autoPauseRedraw(motionPreference.matches || !canvasVisible);
+          }
         })
         .nodeCanvasObject((node, context, scale) => {
           const focused = node.id === activeId;
+          const focusOpacity = emphasis(node.id);
           const radius = nodeRadius(node);
+          const offset = offsets.get(node);
+          const x = node.x + (offset?.x ?? 0) / scale;
+          const y = node.y + (offset?.y ?? 0) / scale;
           context.save();
-          context.globalAlpha = !activeId || focused || neighbors.has(node.id) ? 1 : 0.22;
+          const nodeOpacity = 0.42 + 0.58 * visibility(node.id);
+          context.globalAlpha = nodeOpacity * (1 - focusOpacity);
           context.fillStyle = SUBJECT_META[node.subjectId].color;
           context.strokeStyle = context.fillStyle;
           context.lineWidth = 1.4 / scale;
           context.beginPath();
-          context.arc(node.x, node.y, radius, 0, Math.PI * 2);
-          if (node.isPublished) context.fill();
-          else context.stroke();
-          if (focused) {
-            context.strokeStyle = text;
-            context.beginPath();
-            context.arc(node.x, node.y, radius + 4 / scale, 0, Math.PI * 2);
+          context.arc(x, y, radius, 0, Math.PI * 2);
+          context.globalAlpha *= node.isPublished ? 1 : 0.22;
+          context.fill();
+          if (!node.isPublished) {
+            context.globalAlpha = nodeOpacity * (1 - focusOpacity);
             context.stroke();
           }
-          const labelOpacity = focused ? 1 : activeId ? 0 : Math.max(0, Math.min(1, (scale - 1.65) / 0.9));
+          if (focusOpacity > 0) {
+            context.fillStyle = accent;
+            context.globalAlpha = focusOpacity * (node.isPublished ? 1 : 0.6);
+            context.fill();
+            if (!node.isPublished) {
+              context.strokeStyle = accent;
+              context.globalAlpha = focusOpacity;
+              context.stroke();
+            }
+          }
+          const zoomOpacity = Math.max(0, Math.min(1, (scale - 0.65) / 0.9));
+          const relatedOpacity = labelEmphasis(node.id);
+          const contextOpacity = zoomOpacity * (0.82 - 0.36 * dimming());
+          const labelOpacity = Math.max(relatedOpacity, contextOpacity);
           if (labelOpacity > 0) {
-            context.globalAlpha = labelOpacity;
-            context.font = `${12 / scale}px system-ui, sans-serif`;
-            context.fillStyle = text;
-            context.textAlign = 'center';
-            const title = focused || node.title.length <= 12 ? node.title : `${node.title.slice(0, 12)}…`;
-            context.fillText(title, node.x, node.y + radius + 17 / scale);
+            const title = focused || relatedOpacity > 0 || node.title.length <= 12
+              ? node.title : `${node.title.slice(0, 12)}…`;
+            const priority = focused ? 200 : relatedOpacity > contextOpacity ? 100 : Math.min(99, node.degree);
+            labels.push({ title, x, y: y + radius + 15 / scale, opacity: labelOpacity, priority });
           }
           context.restore();
         })
         .nodePointerAreaPaint((node, color, context, scale) => {
           context.fillStyle = color;
           context.beginPath();
-          context.arc(node.x, node.y, Math.max(nodeRadius(node) + 2, 8 / scale), 0, Math.PI * 2);
+          const offset = offsets.get(node);
+          context.arc(node.x + (offset?.x ?? 0) / scale, node.y + (offset?.y ?? 0) / scale,
+            Math.max(nodeRadius(node) + 2, 8 / scale), 0, Math.PI * 2);
           context.fill();
         })
         .linkCanvasObjectMode(() => 'replace')
-        .linkCanvasObject(({ source, target, kind }, context, scale) => {
-          const focused = source.id === activeId || target.id === activeId;
+        .linkCanvasObject((link, context, scale) => {
+          const { source, target, kind } = link;
+          const focusOpacity = edgeEmphasis(link);
           context.save();
-          context.strokeStyle = focused ? text : muted;
-          context.globalAlpha = focused ? 0.8 : activeId ? 0.08 : 0.35;
-          context.lineWidth = (focused ? 1.6 : 0.85) / scale;
-          if (kind === 'related') context.setLineDash([3 / scale, 3 / scale]);
+          const sourceOffset = offsets.get(source);
+          const targetOffset = offsets.get(target);
+          const sourceX = source.x + (sourceOffset?.x ?? 0) / scale;
+          const sourceY = source.y + (sourceOffset?.y ?? 0) / scale;
+          const targetX = target.x + (targetOffset?.x ?? 0) / scale;
+          const targetY = target.y + (targetOffset?.y ?? 0) / scale;
+          const distance = Math.hypot(targetX - sourceX, targetY - sourceY);
+          const sourceRadius = nodeRadius(source) + (source.isPublished ? 0 : 0.4 / scale);
+          const targetRadius = nodeRadius(target) + (target.isPublished ? 0 : 0.4 / scale);
+          const length = distance - sourceRadius - targetRadius;
+          if (length <= 0) {
+            context.restore();
+            return;
+          }
+          const directionX = (targetX - sourceX) / distance;
+          const directionY = (targetY - sourceY) / distance;
+          if (kind === 'related') {
+            const gap = 3 / scale;
+            const gaps = Math.floor(length * scale / 8);
+            context.setLineDash([(length - gap * gaps) / (gaps + 1), gap]);
+          }
           context.beginPath();
-          context.moveTo(source.x, source.y);
-          context.lineTo(target.x, target.y);
+          context.moveTo(sourceX + directionX * sourceRadius, sourceY + directionY * sourceRadius);
+          context.lineTo(targetX - directionX * targetRadius, targetY - directionY * targetRadius);
+          context.strokeStyle = muted;
+          context.globalAlpha = (0.46 - 0.24 * dimming()) * (1 - focusOpacity);
+          context.lineWidth = 0.85 / scale;
           context.stroke();
+          if (focusOpacity > 0) {
+            context.strokeStyle = accent;
+            context.globalAlpha = 0.9 * focusOpacity;
+            context.lineWidth = 1.4 / scale;
+            context.stroke();
+          }
           context.restore();
         })
         .onNodeHover((node) => {
           hoveredId = hoverPreference.matches ? node?.id ?? '' : '';
           refresh();
         })
+        .onNodeDrag((node) => { dragging = node; })
+        .onNodeDragEnd(() => { dragging = undefined; })
         .onNodeClick((node) => setSelectedId(node.id))
         .onBackgroundClick(() => {
           hoveredId = '';
@@ -207,21 +340,36 @@ export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Gr
           refresh();
         });
 
-      renderer.d3Force('charge')?.strength(-76);
-      renderer.d3Force('link')?.distance(64).strength(0.32);
-      const syncMotion = () => renderer
-        .warmupTicks(motionPreference.matches ? 130 : 32)
-        .cooldownTicks(motionPreference.matches ? 0 : Infinity);
+      renderer.d3Force('charge')?.strength(-36);
+      renderer.d3Force('link')?.distance(38).strength(0.62);
+      const syncMotion = () => {
+        renderer
+          .warmupTicks(motionPreference.matches ? 130 : 32)
+          .cooldownTicks(motionPreference.matches ? 0 : Infinity);
+        if (motionPreference.matches) {
+          focusAnimation?.stop();
+          progress = 1;
+        }
+        refresh();
+      };
       const resize = () => renderer.width(host.clientWidth).height(host.clientHeight);
       syncMotion();
       readTheme();
       resize();
       observer = new ResizeObserver(resize);
       observer.observe(host);
+      visibilityObserver = new IntersectionObserver(([entry]) => {
+        canvasVisible = entry.isIntersecting;
+        refresh();
+      });
+      visibilityObserver.observe(host);
       themeObserver = new MutationObserver(readTheme);
       themeObserver.observe(document.documentElement, { attributeFilter: ['class'] });
       motionPreference.addEventListener('change', syncMotion);
-      cleanMotion = () => motionPreference.removeEventListener('change', syncMotion);
+      cleanMotion = () => {
+        motionPreference.removeEventListener('change', syncMotion);
+        focusAnimation?.stop();
+      };
       setGraph(() => renderer);
     }).catch(() => {
       if (!disposed) setRendererFailed(true);
@@ -232,6 +380,7 @@ export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Gr
       disposed = true;
       observer?.disconnect();
       themeObserver?.disconnect();
+      visibilityObserver?.disconnect();
       cleanMotion?.();
       cameraAnimation.current?.stop();
       instance?._destructor();
@@ -241,11 +390,24 @@ export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Gr
 
   useEffect(() => {
     if (!graph) return;
-    cameraAnimation.current?.stop();
-    graph.graphData(makeGraphData(filtered.nodes, filtered.edges));
+    const firstDraw = graph.graphData().nodes.length === 0 && savedPositions.current.size === 0;
+    for (const { id, x, y } of graph.graphData().nodes) {
+      savedPositions.current.set(id, { x, y });
+    }
+    const visible = new Map(filtered.nodes.map(({ id }) =>
+      [id, { ...seeds.get(id)!, ...savedPositions.current.get(id) }]));
+    graph.graphData({
+      nodes: Array.from(visible.values()),
+      links: filtered.edges.map(({ source, target, kind }) => ({
+        source: visible.get(source)!,
+        target: visible.get(target)!,
+        kind,
+      })),
+    });
+    if (!firstDraw || !visible.size) return;
     const frame = requestAnimationFrame(() => graph.zoomToFit(0, 48));
     return () => cancelAnimationFrame(frame);
-  }, [filtered, graph]);
+  }, [filtered, graph, seeds]);
 
   useEffect(() => {
     selectionRef.current = selectedId;
@@ -310,13 +472,13 @@ export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Gr
 
   return (
     <TooltipProvider delayDuration={200}>
-      <header className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <header className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="font-editorial text-2xl font-semibold text-[var(--text)] sm:text-3xl">知识图谱</h1>
-        <Tabs className="ml-auto min-w-0" value={subjectFilter} onValueChange={(value) => {
+        <Tabs className="min-w-0 max-w-full" value={subjectFilter} onValueChange={(value) => {
           setSubjectFilter(value as SubjectFilter);
           setSelectedId('');
         }}>
-          <TabsList aria-label="学科筛选" className="h-auto max-w-full flex-wrap">
+          <TabsList aria-label="学科筛选" className="h-auto max-w-full flex-wrap justify-start">
             {FILTERS.map((key) => (
               <TabsTrigger key={key} value={key}>{key === 'all' ? '全部学科' : SUBJECT_META[key].label}</TabsTrigger>
             ))}
