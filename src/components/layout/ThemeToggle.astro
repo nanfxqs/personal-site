@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
   title="切换浅色/暗色主题"
   class={cn(
     buttonVariants({ variant: 'outline', size: 'icon' }),
-    'rounded-full bg-card/80 text-muted-foreground hover:text-foreground',
+    'relative size-8 rounded-full bg-card/80 text-muted-foreground hover:text-foreground max-md:before:absolute max-md:before:-inset-y-1.5 max-md:before:-inset-x-0.5 max-md:before:content-[""] md:size-9',
   )}
 >
   <svg

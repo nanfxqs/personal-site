@@ -16,26 +16,28 @@ const subjectLinks = [
   { label: '数学一', href: '/kb/math1', dot: 'bg-[var(--subject-math1)]' },
   { label: '英语一', href: '/kb/english1', dot: 'bg-[var(--subject-english1)]' },
 ];
+const activeSubject = subjectLinks.find(({ href }) => isActive(href));
 ---
 
 <header
   class="site-nav sticky top-0 z-40 border-b border-border/70 bg-background/72 backdrop-blur-xl backdrop-saturate-150 shadow-[inset_0_-1px_0_rgba(255,255,255,0.22)] dark:shadow-[inset_0_-1px_0_rgba(186,230,253,0.06)]"
 >
-  <div class="mx-auto flex h-15 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+  <div class="mx-auto flex h-15 max-w-7xl items-center gap-2 px-2 sm:px-6 md:justify-between md:gap-4 lg:px-8">
     <a
       href="/"
-      class="flex items-center gap-2 font-editorial text-xl font-semibold tracking-tight text-foreground transition-opacity hover:opacity-80"
+      class="hidden items-center gap-2 font-editorial text-xl font-semibold tracking-tight text-foreground transition-opacity hover:opacity-80 md:flex"
     >
       <span class="inline-block h-2 w-2 rounded-full bg-primary shadow-[0_0_10px_var(--primary)]"></span>
       <span class="italic">{SITE.nickname}.</span>
     </a>
 
-    <nav aria-label="主导航" class="hidden items-center gap-1 md:flex">
+    <nav data-main-nav aria-label="主导航" class="no-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap px-0.5 py-2 md:flex-none">
       <a
         href="/"
+        aria-current={isActive('/') ? 'page' : undefined}
         class={cn(
           buttonVariants({ variant: isActive('/') ? 'secondary' : 'ghost', size: 'sm' }),
-          'rounded-full text-[13px]',
+          'shrink-0 rounded-full text-xs md:text-[13px]',
           isActive('/') && 'font-semibold text-secondary-foreground',
         )}
       >
@@ -43,26 +45,45 @@ const subjectLinks = [
       </a>
       <a
         href="/journal"
+        aria-current={isActive('/journal') ? 'page' : undefined}
         class={cn(
           buttonVariants({ variant: isActive('/journal') ? 'secondary' : 'ghost', size: 'sm' }),
-          'rounded-full text-[13px]',
+          'shrink-0 rounded-full text-xs md:text-[13px]',
           isActive('/journal') && 'font-semibold text-secondary-foreground',
         )}
       >
         日常
       </a>
 
-      <!-- Exam Subjects wrapped with subtle luminous frost aura -->
-      <div class="subject-pill-wrap mx-1.5">
-        <div class="subject-pill-inner flex items-center gap-0.5 px-1 py-0.5">
+      <button
+        id="subject-nav-trigger"
+        type="button"
+        popovertarget="subject-nav-menu"
+        aria-controls="subject-nav-menu"
+        aria-expanded="false"
+        data-current={activeSubject ? 'true' : undefined}
+        class={cn(
+          buttonVariants({ variant: activeSubject ? 'secondary' : 'ghost', size: 'sm' }),
+          'shrink-0 gap-1.5 rounded-full text-xs md:text-[13px]',
+        )}
+      >
+        {activeSubject ? `学科 · ${activeSubject.label}` : '学科'}
+        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      <div id="subject-nav-menu" popover role="group" aria-label="选择学科"
+        class="fixed inset-auto m-0 w-40 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg">
+        <ul class="space-y-0.5">
           {
             subjectLinks.map((link) => {
               const active = isActive(link.href);
               return (
-                <a
+                <li><a
                   href={link.href}
+                  aria-current={active ? 'location' : undefined}
                   class={cn(
-                    'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors duration-200',
+                    'flex min-h-10 items-center gap-2.5 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary',
                     active
                       ? 'bg-primary text-primary-foreground shadow-xs'
                       : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
@@ -75,32 +96,34 @@ const subjectLinks = [
                     )}
                   />
                   <span>{link.label}</span>
-                </a>
+                </a></li>
               );
             })
           }
-        </div>
+        </ul>
       </div>
 
       <a
         href="/graph"
+        aria-current={isActive('/graph') ? 'page' : undefined}
         class={cn(
           buttonVariants({ variant: isActive('/graph') ? 'secondary' : 'ghost', size: 'sm' }),
-          'rounded-full text-[13px]',
+          'shrink-0 rounded-full text-xs md:text-[13px]',
           isActive('/graph') && 'font-semibold text-secondary-foreground',
         )}
       >
-        知识图谱
+        <span class="hidden md:inline">知识图谱</span><span class="md:hidden">图谱</span>
       </a>
     </nav>
 
-    <div class="flex items-center gap-2">
+    <div class="flex shrink-0 items-center gap-1.5 border-l border-border/60 pl-2 md:gap-2 md:border-0 md:pl-0">
       <button
         type="button"
         data-open-search
+        aria-label="搜索"
         class={cn(
           buttonVariants({ variant: 'outline', size: 'sm' }),
-          'h-9 sm:h-8 rounded-full bg-card/75 px-3 text-muted-foreground backdrop-blur-md hover:text-foreground',
+          'relative size-8 rounded-full bg-card/75 p-0 text-muted-foreground backdrop-blur-md hover:text-foreground max-md:before:absolute max-md:before:-inset-y-1.5 max-md:before:-inset-x-0.5 max-md:before:content-[""] md:w-auto md:px-3',
         )}
       >
         <svg
@@ -115,65 +138,78 @@ const subjectLinks = [
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.3-4.3" />
         </svg>
-        <span class="hidden sm:inline text-xs">搜索</span>
-        <kbd class="hidden h-5 items-center rounded border border-border bg-muted/80 px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex">
+        <span class="hidden text-xs md:inline">搜索</span>
+        <kbd class="hidden h-5 items-center rounded border border-border bg-muted/80 px-1.5 font-mono text-[10px] font-medium text-muted-foreground md:inline-flex">
           ⌘K
         </kbd>
       </button>
       <ThemeToggle />
     </div>
   </div>
-
-  <!-- Mobile compact nav (touch-friendly targets) -->
-  <nav
-    aria-label="移动端导航"
-    class="no-scrollbar flex items-center gap-1.5 overflow-x-auto border-t border-border/60 px-4 py-2 md:hidden"
-  >
-    <a
-      href="/"
-      class={cn(
-        buttonVariants({ variant: isActive('/') ? 'secondary' : 'ghost', size: 'sm' }),
-        'h-8 shrink-0 rounded-full px-3 text-xs',
-      )}
-    >
-      首页
-    </a>
-    <a
-      href="/journal"
-      class={cn(
-        buttonVariants({ variant: isActive('/journal') ? 'secondary' : 'ghost', size: 'sm' }),
-        'h-8 shrink-0 rounded-full px-3 text-xs',
-      )}
-    >
-      日常
-    </a>
-    <div class="subject-pill-wrap shrink-0">
-      <div class="subject-pill-inner flex items-center gap-0.5 px-1 py-0.5">
-        {
-          subjectLinks.map((link) => (
-            <a
-              href={link.href}
-              class={cn(
-                'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
-                isActive(link.href)
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {link.label}
-            </a>
-          ))
-        }
-      </div>
-    </div>
-    <a
-      href="/graph"
-      class={cn(
-        buttonVariants({ variant: isActive('/graph') ? 'secondary' : 'ghost', size: 'sm' }),
-        'h-8 shrink-0 rounded-full px-3 text-xs',
-      )}
-    >
-      图谱
-    </a>
-  </nav>
 </header>
+
+<script is:inline>
+  (() => {
+    const nav = document.querySelector('[data-main-nav]');
+    const trigger = document.getElementById('subject-nav-trigger');
+    const menu = document.getElementById('subject-nav-menu');
+    if (!nav || !trigger || !menu) return;
+
+    function positionMenu() {
+      const triggerBounds = trigger.getBoundingClientRect();
+      const navBounds = nav.getBoundingClientRect();
+      const top = triggerBounds.bottom + 8;
+      const left = Math.min(Math.max(8, triggerBounds.left, navBounds.left), document.documentElement.clientWidth - menu.offsetWidth - 8);
+      menu.style.left = `${left}px`;
+      menu.style.top = `${top}px`;
+      menu.style.maxHeight = `${Math.max(0, window.innerHeight - top - 8)}px`;
+    }
+
+    function syncPosition() {
+      if (!menu.matches(':popover-open')) return;
+      const triggerBounds = trigger.getBoundingClientRect();
+      const navBounds = nav.getBoundingClientRect();
+      if (triggerBounds.right <= navBounds.left || triggerBounds.left >= navBounds.right) {
+        menu.hidePopover();
+      } else {
+        positionMenu();
+      }
+    }
+
+    menu.addEventListener('toggle', (event) => {
+      const open = event.newState === 'open';
+      trigger.setAttribute('aria-expanded', String(open));
+      if (open) syncPosition();
+    });
+    menu.addEventListener('beforetoggle', (event) => {
+      if (event.newState === 'open') {
+        const bounds = trigger.getBoundingClientRect();
+        menu.style.left = `${Math.max(8, bounds.left)}px`;
+        menu.style.top = `${bounds.bottom + 8}px`;
+      }
+    });
+    document.addEventListener('focusin', (event) => {
+      if (event.target !== trigger && !menu.contains(event.target) && menu.matches(':popover-open')) {
+        menu.hidePopover();
+      }
+    });
+    function closeMenu() {
+      if (menu.matches(':popover-open')) menu.hidePopover();
+    }
+
+    nav.addEventListener('click', (event) => {
+      if (event.target.closest('a') && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+        closeMenu();
+      }
+    });
+    window.addEventListener('pagehide', closeMenu);
+    nav.addEventListener('scroll', syncPosition, { passive: true });
+    window.addEventListener('resize', syncPosition, { passive: true });
+
+    const active = nav.querySelector(':scope > [aria-current], :scope > [data-current]');
+    if (active) {
+      const overflow = active.getBoundingClientRect().right - nav.getBoundingClientRect().right;
+      if (overflow > 0) nav.scrollLeft += overflow + 8;
+    }
+  })();
+</script>
